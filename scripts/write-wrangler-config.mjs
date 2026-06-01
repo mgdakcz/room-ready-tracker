@@ -1,18 +1,17 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+// Nitro generates dist/server/wrangler.json with `main: "index.mjs"` and
+// `assets.directory: "../client"` — paths relative to the config file.
+// Some wrangler/CI environments resolve these paths relative to cwd (project
+// root) instead, causing "entry-point file at 'index.mjs' was not found".
+// Rewrite them as project-root-relative paths so both behaviors work.
+import { readFile, writeFile } from "node:fs/promises";
 
-const rootConfig = JSON.parse(await readFile("wrangler.json", "utf8"));
+const path = "dist/server/wrangler.json";
+const config = JSON.parse(await readFile(path, "utf8"));
 
-const serverConfig = {
-  ...rootConfig,
-  main: "index.mjs",
-  assets: {
-    ...rootConfig.assets,
-    directory: "../client",
-  },
-};
+config.main = "dist/server/index.mjs";
+if (config.assets) {
+  config.assets.directory = "dist/client";
+}
 
-await mkdir("dist/server", { recursive: true });
-await writeFile(
-  "dist/server/wrangler.json",
-  `${JSON.stringify(serverConfig, null, 2)}\n`,
-);
+await writeFile(path, `${JSON.stringify(config, null, 2)}\n`);
+console.log("Patched dist/server/wrangler.json paths to project-root-relative");
