@@ -3,7 +3,7 @@ import { z } from "zod";
 
 const SPREADSHEET_ID = "1hne3vp8EQtLIqdGgGDKFm2I9nr2PlICHBy0dgj4lZsE";
 const SHEET_NAME = "Rooms";
-const GATEWAY = "https://connector-gateway.lovable.dev/google_sheets/v4";
+const SHEETS_API = "https://sheets.googleapis.com/v4";
 
 // Status values that exist in the sheet's Selection tab + one transient state we add
 export const STATUSES = [
@@ -16,7 +16,7 @@ export const STATUSES = [
 export type RoomStatus = (typeof STATUSES)[number];
 
 export type Room = {
-  row: number; // 1-based sheet row, >= 2
+  row: number;
   roomId: string;
   roomName: string;
   floor: string;
@@ -29,18 +29,102 @@ export type Room = {
   notes: string;
 };
 
-function gatewayHeaders() {
-  const lovableKey = process.env.LOVABLE_API_KEY;
-  const connectionKey = process.env.GOOGLE_SHEETS_API_KEY;
-  if (!lovableKey) throw new Error("LOVABLE_API_KEY is not configured");
-  if (!connectionKey)
-    throw new Error("GOOGLE_SHEETS_API_KEY is not configured (link the Google Sheets connector)");
+// ---------- Google service-account auth (JWT -> access token) ----------
+
+let cachedToken: { token: string; expiresAt: number } | null = null;
+
+function base64UrlEncode(input: ArrayBuffer | string): string {
+  const bytes =
+    typeof input === "string"
+      ? new TextEncoder().encode(input)
+      : new Uint8Array(input);
+  let str = "";
+  for (let i = 0; i < bytes.length; i++) str += String.fromCharCode(bytes[i]);
+  return btoa(str).replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+
+function pemToArrayBuffer(pem: string): ArrayBuffer {
+  const cleaned = pem
+    .replace(/-----BEGIN [^-]+-----/g, "")
+    .replace(/-----END [^-]+-----/g, "")
+    .replace(/\s+/g, "");
+  const binary = atob(cleaned);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
+
+async function getAccessToken(): Promise<string> {
+  if (cachedToken && cachedToken.expiresAt > Date.now() + 30_000) {
+    return cachedToken.token;
+  }
+
+  const clientEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const rawKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+  if (!clientEmail) throw new Error("GOOGLE_SERVICE_ACCOUNT_EMAIL is not configured");
+  if (!rawKey) throw new Error("GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY is not configured");
+
+  // Secrets often store PEMs with literal "\n" — normalise to real newlines.
+  const privateKeyPem = rawKey.replace(/\\n/g, "\n");
+
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: "RS256", typ: "JWT" };
+  const payload = {
+    iss: clientEmail,
+    scope: "https://www.googleapis.com/auth/spreadsheets",
+    aud: "https://oauth2.googleapis.com/token",
+    exp: now + 3600,
+    iat: now,
+  };
+
+  const signingInput = `${base64UrlEncode(JSON.stringify(header))}.${base64UrlEncode(
+    JSON.stringify(payload),
+  )}`;
+
+  const keyData = pemToArrayBuffer(privateKeyPem);
+  const cryptoKey = await crypto.subtle.importKey(
+    "pkcs8",
+    keyData,
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signature = await crypto.subtle.sign(
+    "RSASSA-PKCS1-v1_5",
+    cryptoKey,
+    new TextEncoder().encode(signingInput),
+  );
+  const jwt = `${signingInput}.${base64UrlEncode(signature)}`;
+
+  const res = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion: jwt,
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Google token exchange failed [${res.status}]: ${await res.text()}`);
+  }
+  const data = (await res.json()) as { access_token: string; expires_in: number };
+  cachedToken = {
+    token: data.access_token,
+    expiresAt: Date.now() + data.expires_in * 1000,
+  };
+  return data.access_token;
+}
+
+async function authHeaders() {
+  const token = await getAccessToken();
   return {
-    Authorization: `Bearer ${lovableKey}`,
-    "X-Connection-Api-Key": connectionKey,
+    Authorization: `Bearer ${token}`,
     "Content-Type": "application/json",
   };
 }
+
+// ---------- Time helpers ----------
 
 function nowWarsaw(): { stamp: string; date: Date } {
   const date = new Date();
@@ -73,10 +157,12 @@ function diffHHMM(startStamp: string, endStamp: string): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
+// ---------- Sheets I/O ----------
+
 async function readRows(): Promise<Room[]> {
   const range = `${SHEET_NAME}!A2:I100`;
-  const url = `${GATEWAY}/spreadsheets/${SPREADSHEET_ID}/values/${range}`;
-  const res = await fetch(url, { headers: gatewayHeaders(), cache: "no-store" });
+  const url = `${SHEETS_API}/spreadsheets/${SPREADSHEET_ID}/values/${range}`;
+  const res = await fetch(url, { headers: await authHeaders(), cache: "no-store" });
   if (!res.ok) {
     throw new Error(`Sheets read failed [${res.status}]: ${await res.text()}`);
   }
@@ -104,16 +190,18 @@ async function readRows(): Promise<Room[]> {
 }
 
 async function writeRange(range: string, values: (string | number)[][]) {
-  const url = `${GATEWAY}/spreadsheets/${SPREADSHEET_ID}/values/${range}?valueInputOption=USER_ENTERED`;
+  const url = `${SHEETS_API}/spreadsheets/${SPREADSHEET_ID}/values/${range}?valueInputOption=USER_ENTERED`;
   const res = await fetch(url, {
     method: "PUT",
-    headers: gatewayHeaders(),
+    headers: await authHeaders(),
     body: JSON.stringify({ range, majorDimension: "ROWS", values }),
   });
   if (!res.ok) {
     throw new Error(`Sheets write failed [${res.status}]: ${await res.text()}`);
   }
 }
+
+// ---------- Server functions ----------
 
 export const getRooms = createServerFn({ method: "GET" }).handler(async () => {
   const rooms = await readRows();
