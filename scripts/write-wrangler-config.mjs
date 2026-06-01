@@ -1,18 +1,7 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+// Nitro already generates dist/server/wrangler.json correctly during build.
+// This script is a no-op safety net that just verifies the file exists.
+import { access } from "node:fs/promises";
 
-const rootConfig = JSON.parse(await readFile("wrangler.json", "utf8"));
-
-const serverConfig = {
-  ...rootConfig,
-  main: "index.mjs",
-  assets: {
-    ...rootConfig.assets,
-    directory: "../client",
-  },
-};
-
-await mkdir("dist/server", { recursive: true });
-await writeFile(
-  "dist/server/wrangler.json",
-  `${JSON.stringify(serverConfig, null, 2)}\n`,
-);
+await access("dist/server/wrangler.json");
+await access("dist/server/index.mjs");
+console.log("Verified dist/server/{wrangler.json,index.mjs} exist");
