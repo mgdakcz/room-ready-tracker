@@ -1,0 +1,17 @@
+{
+  "compatibility_date": "2026-06-01",
+  "main": "dist/server/index.mjs",
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "dist/client"
+  },
+  "name": "tanstack-start-ts",
+  "compatibility_flags": ["nodejs_compat"],
+  "no_bundle": true,
+  "rules": [
+    {
+      "type": "ESModule",
+      "globs": ["**/*.mjs", "**/*.js"]
+    }
+  ]
+}
