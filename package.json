@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "build": "vite build",
+    "build": "vite build && node scripts/write-wrangler-config.mjs",
     "build:dev": "vite build --mode development",
     "deploy": "wrangler deploy --config wrangler.json",
     "preview": "vite preview",
