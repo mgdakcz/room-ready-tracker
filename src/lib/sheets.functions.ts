@@ -105,19 +105,35 @@ async function readRows(): Promise<Room[]> {
 }
 
 async function writeRange(range: string, values: (string | number)[][]) {
-  const apiKey = process.env.GOOGLE_SHEETS_API_KEY || "";
-  if (!apiKey) throw new Error("GOOGLE_SHEETS_API_KEY is not configured");
+  const url = process.env.APPS_SCRIPT_URL || "";
+  const token = process.env.APPS_SCRIPT_TOKEN || "";
+  if (!url) throw new Error("APPS_SCRIPT_URL is not configured");
+  if (!token) throw new Error("APPS_SCRIPT_TOKEN is not configured");
 
-  // Fix: Target the specific payload range dynamically inside the URL string path
-  const url = `${GATEWAY}/spreadsheets/${SPREADSHEET_ID}/values/${range}?valueInputOption=USER_ENTERED&key=${apiKey}`;
-  
+  // The range arrives as "Rooms!C5:G5"; Apps Script wants the sheet name
+  // and the A1 range separately.
+  const bang = range.indexOf("!");
+  const sheetName = bang >= 0 ? range.slice(0, bang) : SHEET_NAME;
+  const a1 = bang >= 0 ? range.slice(bang + 1) : range;
+
   const res = await fetch(url, {
-    method: "PUT",
-    headers: getGoogleRequestHeaders(),
-    body: JSON.stringify({ range, majorDimension: "ROWS", values }),
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      token,
+      spreadsheetId: SPREADSHEET_ID,
+      sheetName,
+      range: a1,
+      values,
+    }),
+    redirect: "follow",
   });
   if (!res.ok) {
     throw new Error(`Sheets write failed [${res.status}]: ${await res.text()}`);
+  }
+  const json = (await res.json()) as { ok?: boolean; error?: string };
+  if (!json.ok) {
+    throw new Error(`Sheets write failed: ${json.error ?? "unknown error"}`);
   }
 }
 
