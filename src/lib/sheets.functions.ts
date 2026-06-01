@@ -3,7 +3,7 @@ import { z } from "zod";
 
 const SPREADSHEET_ID = "1hne3vp8EQtLIqdGgGDKFm2I9nr2PlICHBy0dgj4lZsE";
 const SHEET_NAME = "Rooms";
-const GATEWAY = "https://sheets.googleapis.com/v4";
+const GATEWAY = "https://connector-gateway.lovable.dev/google_sheets/v4";
 
 // Status values that exist in the sheet's Selection tab + one transient state we add
 export const STATUSES = [
@@ -29,9 +29,15 @@ export type Room = {
   notes: string;
 };
 
-// Returns standard JSON content headers for public Google API requests
-function getGoogleRequestHeaders() {
+function gatewayHeaders() {
+  const lovableKey = process.env.LOVABLE_API_KEY;
+  const connectionKey = process.env.GOOGLE_SHEETS_API_KEY;
+  if (!lovableKey) throw new Error("LOVABLE_API_KEY is not configured");
+  if (!connectionKey)
+    throw new Error("GOOGLE_SHEETS_API_KEY is not configured (link the Google Sheets connector)");
   return {
+    Authorization: `Bearer ${lovableKey}`,
+    "X-Connection-Api-Key": connectionKey,
     "Content-Type": "application/json",
   };
 }
@@ -68,16 +74,9 @@ function diffHHMM(startStamp: string, endStamp: string): string {
 }
 
 async function readRows(): Promise<Room[]> {
-  const apiKey = process.env.GOOGLE_SHEETS_API_KEY || "";
-  if (!apiKey) throw new Error("GOOGLE_SHEETS_API_KEY is not configured");
-
   const range = `${SHEET_NAME}!A2:I100`;
-  const url = `${GATEWAY}/spreadsheets/${SPREADSHEET_ID}/values/${range}?key=${apiKey}`;
-
-  const res = await fetch(url, {
-    headers: getGoogleRequestHeaders(),
-    cache: "no-store",
-  });
+  const url = `${GATEWAY}/spreadsheets/${SPREADSHEET_ID}/values/${range}`;
+  const res = await fetch(url, { headers: gatewayHeaders(), cache: "no-store" });
   if (!res.ok) {
     throw new Error(`Sheets read failed [${res.status}]: ${await res.text()}`);
   }
@@ -105,35 +104,14 @@ async function readRows(): Promise<Room[]> {
 }
 
 async function writeRange(range: string, values: (string | number)[][]) {
-  const url = process.env.APPS_SCRIPT_URL || "";
-  const token = process.env.APPS_SCRIPT_TOKEN || "";
-  if (!url) throw new Error("APPS_SCRIPT_URL is not configured");
-  if (!token) throw new Error("APPS_SCRIPT_TOKEN is not configured");
-
-  // The range arrives as "Rooms!C5:G5"; Apps Script wants the sheet name
-  // and the A1 range separately.
-  const bang = range.indexOf("!");
-  const sheetName = bang >= 0 ? range.slice(0, bang) : SHEET_NAME;
-  const a1 = bang >= 0 ? range.slice(bang + 1) : range;
-
+  const url = `${GATEWAY}/spreadsheets/${SPREADSHEET_ID}/values/${range}?valueInputOption=USER_ENTERED`;
   const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      token,
-      spreadsheetId: SPREADSHEET_ID,
-      sheetName,
-      range: a1,
-      values,
-    }),
-    redirect: "follow",
+    method: "PUT",
+    headers: gatewayHeaders(),
+    body: JSON.stringify({ range, majorDimension: "ROWS", values }),
   });
   if (!res.ok) {
     throw new Error(`Sheets write failed [${res.status}]: ${await res.text()}`);
-  }
-  const json = (await res.json()) as { ok?: boolean; error?: string };
-  if (!json.ok) {
-    throw new Error(`Sheets write failed: ${json.error ?? "unknown error"}`);
   }
 }
 
