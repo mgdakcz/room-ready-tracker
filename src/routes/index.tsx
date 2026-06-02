@@ -550,7 +550,7 @@ function ImportantPanel({
               id="new-task"
               value={newTask}
               onChange={(event) => setNewTask(event.target.value)}
-              placeholder="e.g. Restock towels on 2nd floor"
+              placeholder="Dodaj dostawkę w apartamencie nr 2"
               className="h-11"
             />
             <Button
