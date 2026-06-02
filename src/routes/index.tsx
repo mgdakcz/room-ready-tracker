@@ -124,7 +124,7 @@ function Index() {
 
           <div className="grid gap-3 rounded-md border bg-background p-3 md:grid-cols-2">
             <label className="grid gap-2 text-sm font-medium">
-              Cleaner name
+              Sprzątający
               <Input
                 value={cleanerName}
                 onChange={(event) => setCleanerName(event.target.value)}
