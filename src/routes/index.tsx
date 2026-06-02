@@ -240,6 +240,7 @@ function RoomCard({
   onChanged: () => void;
 }) {
   const [notes, setNotes] = useState(room.notes);
+  const [showNotes, setShowNotes] = useState(false);
   const runClockIn = useServerFn(clockIn);
   const runClockOut = useServerFn(clockOut);
   const runSetStatus = useServerFn(setRoomStatus);
