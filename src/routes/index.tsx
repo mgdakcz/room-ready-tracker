@@ -94,7 +94,7 @@ function Index() {
 
   const stats = useMemo(
     () => ({
-      priorytet: rooms.filter((room) => room.status === "Priorytet / do sprzątnięcia").length,
+      priorytet: rooms.filter((room) => room.status === "Priorytet | Do sprzątnięcia").length,
       active: rooms.filter((room) => room.status === "Sprzątanie w toku").length,
       wolne: rooms.filter((room) => room.status === "Wolne / do sprzątnięcia").length,
     }),
@@ -116,7 +116,7 @@ function Index() {
               </p>
             </div>
             <div className="grid grid-cols-3 gap-2 md:min-w-80">
-              <Metric label="Priorytet / do sprzątnięcia" value={stats.priorytet} icon={Clock3} />
+              <Metric label="Priorytet | Do sprzątnięcia" value={stats.priorytet} icon={Clock3} />
               <Metric label="Wolne / do sprzątnięcia" value={stats.wolne} icon={CheckCircle2} />
               <Metric label="Sprzątanie w toku" value={stats.active} icon={DoorOpen} />
             </div>
@@ -189,7 +189,7 @@ function Index() {
                 </div>
               ) : null}
               {([
-                "Priorytet / do sprzątnięcia",
+                "Priorytet | Do sprzątnięcia",
                 "Sprzątanie w toku",
                 "Wolne / do sprzątnięcia",
                 "Gotowe",
@@ -201,7 +201,7 @@ function Index() {
                     <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                       <span
                         className={cn("inline-block h-2 w-2 rounded-full", {
-                          "bg-destructive": status === "Priorytet / do sprzątnięcia",
+                          "bg-destructive": status === "Priorytet | Do sprzątnięcia",
                           "bg-primary": status === "Sprzątanie w toku",
                           "bg-muted-foreground": status === "Wolne / do sprzątnięcia",
                           "bg-green-500": status === "Gotowe",
@@ -353,7 +353,7 @@ function RoomCard({
         <Button
           type="button"
           variant="secondary"
-          onClick={() => statusMutation.mutate("Priorytet / do sprzątnięcia")}
+          onClick={() => statusMutation.mutate("Priorytet | Do sprzątnięcia")}
           disabled={isBusy || !ownerPin}
           className="h-10"
         >
@@ -615,7 +615,7 @@ function StatusBadge({ status }: { status: string }) {
   return (
     <Badge
       variant={variant}
-      className={cn("max-w-36 justify-center whitespace-normal text-center leading-tight", {
+      className={cn("max-w-36 justify-center whitespace-normal text-center leading-tight font-mono border-2", {
         "border-primary/50 bg-primary/10 text-primary": status === "Sprzątanie w toku",
       })}
     >
