@@ -570,7 +570,7 @@ function ImportantPanel({
 
       <article className="flex flex-col rounded-md border bg-card p-4 shadow-sm">
         <header className="mb-3 flex items-center justify-between gap-2">
-          <h2 className="text-xl font-semibold tracking-tight">Notes for tomorrow</h2>
+          <h2 className="text-xl font-semibold tracking-tight">​Ważne na jutro</h2>
           <Pencil className="h-4 w-4 text-muted-foreground" />
         </header>
         <form onSubmit={handleSaveNotes} className="flex flex-1 flex-col gap-3">
