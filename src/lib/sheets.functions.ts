@@ -555,12 +555,16 @@ export const addChecklistItem = createServerFn({ method: "POST" })
       action: "Checklist add",
       details: data.task.slice(0, 500),
     });
+    const wazneLogWrite = await createImportantLogWrite(
+      `Checklist add: "${data.task}"`,
+    );
     await writeRanges([
       {
         range: `${IMPORTANT_SHEET_NAME}!A${row}:D${row}`,
         values: [[data.task, "FALSE", "", ""]],
       },
       logWrite,
+      wazneLogWrite,
     ]);
     return { ok: true };
   });
