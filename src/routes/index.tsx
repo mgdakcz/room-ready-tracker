@@ -543,7 +543,7 @@ function ImportantPanel({
 
         <form onSubmit={handleAdd} className="mt-4 grid gap-2 border-t pt-4">
           <label className="text-sm font-medium" htmlFor="new-task">
-            Add task (owner)
+            Dodaj zadanie (owner)
           </label>
           <div className="flex gap-2">
             <Input
