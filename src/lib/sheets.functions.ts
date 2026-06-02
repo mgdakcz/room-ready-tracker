@@ -497,3 +497,128 @@ export const setRoomNotes = createServerFn({ method: "POST" })
     ]);
     return { ok: true };
   });
+
+// ---------- Ważne server functions ----------
+
+export const getImportant = createServerFn({ method: "GET" }).handler(async () => {
+  return readImportant();
+});
+
+export const addChecklistItem = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    z
+      .object({
+        task: z.string().trim().min(1).max(500),
+        pin: z.string().min(1).max(32),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const expected = process.env.OWNER_PIN;
+    if (!expected) throw new Error("OWNER_PIN not configured");
+    if (data.pin !== expected) throw new Error("Invalid PIN");
+    await ensureImportantSheet();
+    const row = await nextEmptyImportantRow();
+    const logWrite = await createLogWrite({
+      action: "Checklist add",
+      details: data.task.slice(0, 500),
+    });
+    await writeRanges([
+      {
+        range: `${IMPORTANT_SHEET_NAME}!A${row}:D${row}`,
+        values: [[data.task, "FALSE", "", ""]],
+      },
+      logWrite,
+    ]);
+    return { ok: true };
+  });
+
+export const toggleChecklistItem = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    z
+      .object({
+        row: z.number().int().min(2).max(200),
+        done: z.boolean(),
+        cleanerName: z.string().trim().max(80).optional(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    if (data.done && (!data.cleanerName || data.cleanerName.length === 0)) {
+      throw new Error("Cleaner name required to check off a task");
+    }
+    const { tasks } = await readImportant();
+    const item = tasks.find((t) => t.row === data.row);
+    const { stamp } = nowWarsaw();
+    const logWrite = await createLogWrite({
+      action: data.done ? "Checklist done" : "Checklist undone",
+      cleanerName: data.done ? data.cleanerName : item?.doneBy,
+      details: item?.task?.slice(0, 500) ?? "",
+    });
+    await writeRanges([
+      {
+        range: `${IMPORTANT_SHEET_NAME}!B${data.row}:D${data.row}`,
+        values: [
+          data.done
+            ? ["TRUE", data.cleanerName ?? "", stamp]
+            : ["FALSE", "", ""],
+        ],
+      },
+      logWrite,
+    ]);
+    return { ok: true };
+  });
+
+export const deleteChecklistItem = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    z
+      .object({
+        row: z.number().int().min(2).max(200),
+        pin: z.string().min(1).max(32),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const expected = process.env.OWNER_PIN;
+    if (!expected) throw new Error("OWNER_PIN not configured");
+    if (data.pin !== expected) throw new Error("Invalid PIN");
+    const { tasks } = await readImportant();
+    const item = tasks.find((t) => t.row === data.row);
+    const logWrite = await createLogWrite({
+      action: "Checklist delete",
+      details: item?.task?.slice(0, 500) ?? "",
+    });
+    await writeRanges([
+      {
+        range: `${IMPORTANT_SHEET_NAME}!A${data.row}:D${data.row}`,
+        values: [["", "", "", ""]],
+      },
+      logWrite,
+    ]);
+    return { ok: true };
+  });
+
+export const setImportantNotes = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    z
+      .object({
+        notes: z.string().max(5000),
+        pin: z.string().min(1).max(32),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const expected = process.env.OWNER_PIN;
+    if (!expected) throw new Error("OWNER_PIN not configured");
+    if (data.pin !== expected) throw new Error("Invalid PIN");
+    await ensureImportantSheet();
+    const logWrite = await createLogWrite({
+      action: "Ważne notes updated",
+      details: data.notes ? data.notes.slice(0, 500) : "(cleared)",
+    });
+    await writeRanges([
+      { range: `${IMPORTANT_SHEET_NAME}!F2`, values: [[data.notes]] },
+      logWrite,
+    ]);
+    return { ok: true };
+  });
