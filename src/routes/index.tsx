@@ -182,9 +182,9 @@ function Index() {
                 </Button>
               ))}
             </div>
-            <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+            <div className="flex flex-col gap-3">
               {isLoading && rooms.length === 0 ? (
-                <div className="col-span-full flex items-center justify-center py-12 text-sm text-muted-foreground">
+                <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading rooms…
                 </div>
               ) : null}
