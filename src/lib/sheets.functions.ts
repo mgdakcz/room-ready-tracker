@@ -87,9 +87,16 @@ async function getAccessToken(): Promise<string> {
         "GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY is in PKCS#1 format (BEGIN RSA PRIVATE KEY). Google service account keys are PKCS#8 (BEGIN PRIVATE KEY) — re-download the JSON key from Google Cloud and copy the `private_key` field verbatim.",
       );
     }
-    throw new Error(
-      "GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY does not look like a PEM private key. Paste the full `private_key` value from the service account JSON, including the BEGIN/END lines.",
-    );
+    // Tolerate keys pasted as raw base64 (no PEM headers) by wrapping them.
+    const stripped = privateKeyPem.replace(/\s+/g, "");
+    if (/^[A-Za-z0-9+/=]+$/.test(stripped) && stripped.length > 100) {
+      const wrapped = stripped.match(/.{1,64}/g)?.join("\n") ?? stripped;
+      privateKeyPem = `-----BEGIN PRIVATE KEY-----\n${wrapped}\n-----END PRIVATE KEY-----\n`;
+    } else {
+      throw new Error(
+        "GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY does not look like a PEM private key. Paste the full `private_key` value from the service account JSON, including the BEGIN/END lines.",
+      );
+    }
   }
 
   const now = Math.floor(Date.now() / 1000);
