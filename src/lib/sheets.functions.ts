@@ -3,6 +3,7 @@ import { z } from "zod";
 
 const SPREADSHEET_ID = "1hne3vp8EQtLIqdGgGDKFm2I9nr2PlICHBy0dgj4lZsE";
 const SHEET_NAME = "Rooms";
+const LOGS_SHEET_NAME = "Logs";
 const SHEETS_API = "https://sheets.googleapis.com/v4";
 
 // Status values that exist in the sheet's Selection tab + one transient state we add
@@ -233,6 +234,38 @@ async function writeRange(range: string, values: (string | number)[][]) {
   }
 }
 
+async function appendLog(entry: {
+  action: string;
+  roomId?: string;
+  roomName?: string;
+  cleanerName?: string;
+  details?: string;
+}) {
+  try {
+    const { stamp } = nowWarsaw();
+    const row = [
+      stamp,
+      entry.action,
+      entry.roomId ?? "",
+      entry.roomName ?? "",
+      entry.cleanerName ?? "",
+      entry.details ?? "",
+    ];
+    const range = `${LOGS_SHEET_NAME}!A:F`;
+    const url = `${SHEETS_API}/spreadsheets/${SPREADSHEET_ID}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: await authHeaders(),
+      body: JSON.stringify({ range, majorDimension: "ROWS", values: [row] }),
+    });
+    if (!res.ok) {
+      console.error(`Sheets log append failed [${res.status}]: ${await res.text()}`);
+    }
+  } catch (err) {
+    console.error("appendLog error:", err);
+  }
+}
+
 // ---------- Server functions ----------
 
 export const getRooms = createServerFn({ method: "GET" }).handler(async () => {
@@ -250,10 +283,19 @@ export const clockIn = createServerFn({ method: "POST" })
       .parse(data),
   )
   .handler(async ({ data }) => {
+    const rooms = await readRows();
+    const room = rooms.find((r) => r.row === data.row);
     const { stamp } = nowWarsaw();
     await writeRange(`${SHEET_NAME}!C${data.row}:G${data.row}`, [
       ["Sprzątanie w toku", stamp, data.cleanerName, stamp, ""],
     ]);
+    await appendLog({
+      action: "Clock in",
+      roomId: room?.roomId,
+      roomName: room?.roomName,
+      cleanerName: data.cleanerName,
+      details: `Started at ${stamp}`,
+    });
     return { ok: true };
   });
 
@@ -270,6 +312,13 @@ export const clockOut = createServerFn({ method: "POST" })
     await writeRange(`${SHEET_NAME}!C${data.row}:H${data.row}`, [
       ["Gotowe", stamp, room.cleanerName, room.startTime, stamp, totalTime],
     ]);
+    await appendLog({
+      action: "Clock out",
+      roomId: room.roomId,
+      roomName: room.roomName,
+      cleanerName: room.cleanerName,
+      details: `Finished at ${stamp} (total ${totalTime})`,
+    });
     return { ok: true };
   });
 
@@ -287,10 +336,18 @@ export const setRoomStatus = createServerFn({ method: "POST" })
     const expected = process.env.OWNER_PIN;
     if (!expected) throw new Error("OWNER_PIN not configured");
     if (data.pin !== expected) throw new Error("Invalid PIN");
+    const rooms = await readRows();
+    const room = rooms.find((r) => r.row === data.row);
     const { stamp } = nowWarsaw();
     await writeRange(`${SHEET_NAME}!C${data.row}:H${data.row}`, [
       [data.status, stamp, "", "", "", ""],
     ]);
+    await appendLog({
+      action: "Status change",
+      roomId: room?.roomId,
+      roomName: room?.roomName,
+      details: `Set to "${data.status}" by owner`,
+    });
     return { ok: true };
   });
 
@@ -312,6 +369,14 @@ export const setRoomNotes = createServerFn({ method: "POST" })
       .parse(data),
   )
   .handler(async ({ data }) => {
+    const rooms = await readRows();
+    const room = rooms.find((r) => r.row === data.row);
     await writeRange(`${SHEET_NAME}!I${data.row}`, [[data.notes]]);
+    await appendLog({
+      action: "Notes updated",
+      roomId: room?.roomId,
+      roomName: room?.roomName,
+      details: data.notes ? data.notes.slice(0, 500) : "(cleared)",
+    });
     return { ok: true };
   });
