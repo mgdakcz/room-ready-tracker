@@ -148,6 +148,11 @@ function Index() {
       </section>
 
       <section className="mx-auto grid w-full max-w-7xl gap-4 px-4 py-6 sm:px-6 lg:grid-cols-2 lg:px-8 xl:grid-cols-3">
+        {isLoading && rooms.length === 0 ? (
+          <div className="col-span-full flex items-center justify-center py-12 text-sm text-muted-foreground">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading rooms…
+          </div>
+        ) : null}
         {visibleRooms.map((room) => (
           <RoomCard
             key={`${room.row}-${room.roomName}`}
