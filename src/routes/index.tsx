@@ -313,8 +313,8 @@ function RoomCard({
     <article className="flex flex-col gap-3 rounded-md border bg-card p-4 shadow-sm sm:flex-row sm:items-start sm:justify-between">
       <div className="flex flex-1 flex-col gap-2">
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <BedDouble className="h-4 w-4" />
+          <div className="flex items-center gap-2 text-xl font-bold text-foreground">
+            <BedDouble className="h-5 w-5" />
             {room.roomId || `Row ${room.row}`}
           </div>
           <StatusBadge status={room.status} />
