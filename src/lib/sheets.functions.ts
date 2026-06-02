@@ -5,6 +5,7 @@ const SPREADSHEET_ID = "1hne3vp8EQtLIqdGgGDKFm2I9nr2PlICHBy0dgj4lZsE";
 const SHEET_NAME = "Rooms";
 const LOGS_SHEET_NAME = "Logs";
 const IMPORTANT_SHEET_NAME = "Ważne";
+const IMPORTANT_LOGS_SHEET_NAME = "Ważne Logs";
 const SHEETS_API = "https://sheets.googleapis.com/v4";
 
 // Encode a range like `Sheet!A1:B2` for the URL path (preserves !, :, /).
