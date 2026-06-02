@@ -319,7 +319,6 @@ function RoomCard({
           </div>
           <StatusBadge status={room.status} />
         </div>
-        <h2 className="text-xl font-semibold tracking-tight">{room.roomName}</h2>
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
           <span>Sprzątający: <span className="font-medium text-foreground">{room.cleanerName || "—"}</span></span>
           <span>Aktualizacja: <span className="font-medium text-foreground">{room.timeStamp || "—"}</span></span>
