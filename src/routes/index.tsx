@@ -47,7 +47,15 @@ export const Route = createFileRoute("/")({
       { property: "og:description", content: "Secure room cleaning clock-in dashboard for Google Sheets tracking." },
     ],
   }),
-  loader: ({ context }) => context.queryClient.ensureQueryData(roomsQueryOptions),
+  loader: async ({ context }) => {
+    try {
+      await context.queryClient.ensureQueryData(roomsQueryOptions);
+    } catch (error) {
+      // Don't crash SSR if the Sheets API is misconfigured — let the client
+      // render and surface the error via useSuspenseQuery's error boundary.
+      console.error("Failed to preload rooms in loader:", error);
+    }
+  },
   component: Index,
 });
 
