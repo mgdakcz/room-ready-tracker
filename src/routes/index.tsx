@@ -282,35 +282,34 @@ function RoomCard({
   }
 
   return (
-    <article className="flex min-h-[420px] flex-col rounded-md border bg-card p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div>
+    <article className="flex flex-col gap-3 rounded-md border bg-card p-4 shadow-sm sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-1 flex-col gap-2">
+        <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <BedDouble className="h-4 w-4" />
             {room.roomId || `Row ${room.row}`}
           </div>
-          <h2 className="mt-1 text-2xl font-semibold tracking-tight">{room.roomName}</h2>
+          <StatusBadge status={room.status} />
         </div>
-        <StatusBadge status={room.status} />
+        <h2 className="text-xl font-semibold tracking-tight">{room.roomName}</h2>
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+          <span>Sprzątający: <span className="font-medium text-foreground">{room.cleanerName || "—"}</span></span>
+          <span>Aktualizacja: <span className="font-medium text-foreground">{room.timeStamp || "—"}</span></span>
+          <span>Start: <span className="font-medium text-foreground">{room.startTime || "—"}</span></span>
+          <span>Suma: <span className="font-medium text-foreground">{room.totalTime || "—"}</span></span>
+        </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
-        <Info label="Cleaner" value={room.cleanerName || "—"} />
-        <Info label="Updated" value={room.timeStamp || "—"} />
-        <Info label="Started" value={room.startTime || "—"} />
-        <Info label="Total" value={room.totalTime || "—"} />
-      </div>
-
-      <div className="mt-4 grid grid-cols-2 gap-2">
+      <div className="flex flex-wrap gap-2 sm:w-auto sm:flex-nowrap">
         {isActive ? (
-          <Button type="button" onClick={() => clockOutMutation.mutate()} disabled={isBusy} className="h-11">
-            {clockOutMutation.isPending ? <Loader2 className="animate-spin" /> : <LogOut />}
-            Finish
+          <Button type="button" onClick={() => clockOutMutation.mutate()} disabled={isBusy} className="h-10">
+            {clockOutMutation.isPending ? <Loader2 className="animate-spin" /> : <LogOut className="h-4 w-4" />}
+            <span className="hidden sm:inline">Finish</span>
           </Button>
         ) : (
-          <Button type="button" onClick={() => clockInMutation.mutate()} disabled={!canStart} className="h-11">
-            {clockInMutation.isPending ? <Loader2 className="animate-spin" /> : <Play />}
-            Start
+          <Button type="button" onClick={() => clockInMutation.mutate()} disabled={!canStart} className="h-10">
+            {clockInMutation.isPending ? <Loader2 className="animate-spin" /> : <Play className="h-4 w-4" />}
+            <span className="hidden sm:inline">Start</span>
           </Button>
         )}
         <Button
@@ -318,46 +317,48 @@ function RoomCard({
           variant="outline"
           onClick={() => statusMutation.mutate("Gotowe")}
           disabled={isBusy || !ownerPin}
-          className="h-11"
+          className="h-10"
         >
-          <CheckCircle2 />
-          Ready
+          <CheckCircle2 className="h-4 w-4" />
+          <span className="hidden sm:inline">Ready</span>
         </Button>
-      </div>
-
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        {STATUSES.filter((status) => status !== "Sprzątanie w toku" && status !== "Gotowe").map((status) => (
-          <Button
-            key={status}
-            type="button"
-            variant="secondary"
-            onClick={() => statusMutation.mutate(status)}
-            disabled={isBusy || !ownerPin}
-            className="h-auto min-h-10 whitespace-normal px-3 py-2 text-xs"
-          >
-            <Sparkles />
-            {status}
-          </Button>
-        ))}
-      </div>
-
-      <form onSubmit={saveNotes} className="mt-auto grid gap-2 pt-4">
-        <label className="flex items-center gap-2 text-sm font-medium" htmlFor={`notes-${room.row}`}>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => statusMutation.mutate("Priorytet / do sprzątnięcia")}
+          disabled={isBusy || !ownerPin}
+          className="h-10"
+        >
+          <Sparkles className="h-4 w-4" />
+          <span className="hidden sm:inline">Priorytet</span>
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => setShowNotes((s) => !s)}
+          className="h-10 px-2"
+        >
           <Pencil className="h-4 w-4" />
-          Notes
-        </label>
-        <Textarea
-          id={`notes-${room.row}`}
-          value={notes}
-          onChange={(event) => setNotes(event.target.value)}
-          className="min-h-20 resize-none"
-          placeholder="Add room notes"
-        />
-        <Button type="submit" variant="outline" disabled={isBusy || notes === room.notes} className="h-10">
-          {notesMutation.isPending ? <Loader2 className="animate-spin" /> : <Save />}
-          Save notes
         </Button>
-      </form>
+      </div>
+
+      {showNotes ? (
+        <form onSubmit={saveNotes} className="w-full border-t pt-3 sm:col-span-full">
+          <Textarea
+            id={`notes-${room.row}`}
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+            className="min-h-16 resize-none"
+            placeholder="Dodaj notatki do pokoju"
+          />
+          <div className="mt-2 flex justify-end">
+            <Button type="submit" variant="outline" disabled={isBusy || notes === room.notes} className="h-9">
+              {notesMutation.isPending ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />}
+              Zapisz notatki
+            </Button>
+          </div>
+        </form>
+      ) : null}
     </article>
   );
 }
