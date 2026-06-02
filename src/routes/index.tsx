@@ -128,7 +128,7 @@ function Index() {
               <Input
                 value={cleanerName}
                 onChange={(event) => setCleanerName(event.target.value)}
-                placeholder="Enter your name before starting"
+                placeholder="Osoby sprzątające apartament"
                 className="h-11"
               />
             </label>
