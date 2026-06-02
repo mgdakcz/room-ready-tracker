@@ -14,7 +14,7 @@ const encRange = (r: string) => encodeURI(r);
 // Status values that exist in the sheet's Selection tab + one transient state we add
 export const STATUSES = [
   "Gotowe",
-  "Wolne / do sprzątnięcia",
+  "Wolne | Do sprzątnięcia",
   "Priorytet | Do sprzątnięcia",
   "Zajęte",
   "Sprzątanie w toku",
