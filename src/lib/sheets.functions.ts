@@ -224,18 +224,6 @@ async function readRows(): Promise<Room[]> {
 
 type SheetWrite = { range: string; values: (string | number)[][] };
 
-async function writeRange(range: string, values: (string | number)[][]) {
-  const url = `${SHEETS_API}/spreadsheets/${SPREADSHEET_ID}/values/${range}?valueInputOption=USER_ENTERED`;
-  const res = await fetch(url, {
-    method: "PUT",
-    headers: await authHeaders(),
-    body: JSON.stringify({ range, majorDimension: "ROWS", values }),
-  });
-  if (!res.ok) {
-    throw new Error(`Sheets write failed [${res.status}]: ${await res.text()}`);
-  }
-}
-
 async function writeRanges(updates: SheetWrite[]) {
   const url = `${SHEETS_API}/spreadsheets/${SPREADSHEET_ID}/values:batchUpdate`;
   const res = await fetch(url, {
@@ -282,10 +270,6 @@ async function createLogWrite(entry: {
   const indexData = (await indexRes.json()) as { values?: string[][] };
   const nextRow = Math.max((indexData.values?.length ?? 0) + 1, 2);
   return { range: `${LOGS_SHEET_NAME}!A${nextRow}:F${nextRow}`, values: [row] };
-}
-
-async function appendLog(entry: Parameters<typeof createLogWrite>[0]) {
-  await writeRanges([await createLogWrite(entry)]);
 }
 
 // ---------- Server functions ----------
