@@ -138,7 +138,7 @@ function Index() {
                 value={ownerPin}
                 onChange={(event) => setOwnerPin(event.target.value)}
                 type="password"
-                placeholder="Required for owner actions"
+                placeholder="Wymagany dla dodatkowych opcji"
                 className="h-11"
               />
             </label>
