@@ -5,6 +5,7 @@ const SPREADSHEET_ID = "1hne3vp8EQtLIqdGgGDKFm2I9nr2PlICHBy0dgj4lZsE";
 const SHEET_NAME = "Rooms";
 const LOGS_SHEET_NAME = "Logs";
 const IMPORTANT_SHEET_NAME = "Ważne";
+const IMPORTANT_LOGS_SHEET_NAME = "Ważne Logs";
 const SHEETS_API = "https://sheets.googleapis.com/v4";
 
 // Encode a range like `Sheet!A1:B2` for the URL path (preserves !, :, /).
@@ -288,28 +289,59 @@ async function ensureImportantSheet() {
     throw new Error(`Sheets metadata failed [${metaRes.status}]: ${await metaRes.text()}`);
   }
   const meta = (await metaRes.json()) as { sheets?: { properties: { title: string } }[] };
-  const exists = meta.sheets?.some((s) => s.properties.title === IMPORTANT_SHEET_NAME);
-  if (!exists) {
+  const titles = new Set((meta.sheets ?? []).map((s) => s.properties.title));
+
+  const requests: unknown[] = [];
+  if (!titles.has(IMPORTANT_SHEET_NAME)) {
+    requests.push({ addSheet: { properties: { title: IMPORTANT_SHEET_NAME } } });
+  }
+  if (!titles.has(IMPORTANT_LOGS_SHEET_NAME)) {
+    requests.push({ addSheet: { properties: { title: IMPORTANT_LOGS_SHEET_NAME } } });
+  }
+  if (requests.length > 0) {
     const addRes = await fetch(`${SHEETS_API}/spreadsheets/${SPREADSHEET_ID}:batchUpdate`, {
       method: "POST",
       headers: await authHeaders(),
-      body: JSON.stringify({
-        requests: [{ addSheet: { properties: { title: IMPORTANT_SHEET_NAME } } }],
-      }),
+      body: JSON.stringify({ requests }),
     });
     if (!addRes.ok) {
-      throw new Error(`Failed to create "${IMPORTANT_SHEET_NAME}" sheet [${addRes.status}]: ${await addRes.text()}`);
+      throw new Error(`Failed to create Ważne sheets [${addRes.status}]: ${await addRes.text()}`);
     }
-    await writeRanges([
-      {
+    const headerWrites: SheetWrite[] = [];
+    if (!titles.has(IMPORTANT_SHEET_NAME)) {
+      headerWrites.push({
         range: `${IMPORTANT_SHEET_NAME}!A1:D1`,
         values: [["Zadanie", "Zrobione", "Przez", "Kiedy"]],
-      },
-      { range: `${IMPORTANT_SHEET_NAME}!F1`, values: [["Notatki"]] },
-    ]);
+      });
+      headerWrites.push({ range: `${IMPORTANT_SHEET_NAME}!F1`, values: [["Notatki"]] });
+    }
+    if (!titles.has(IMPORTANT_LOGS_SHEET_NAME)) {
+      headerWrites.push({
+        range: `${IMPORTANT_LOGS_SHEET_NAME}!A1:B1`,
+        values: [["Kiedy", "Wpis"]],
+      });
+    }
+    if (headerWrites.length > 0) await writeRanges(headerWrites);
   }
   importantSheetReady = true;
 }
+
+async function createImportantLogWrite(entry: string): Promise<SheetWrite> {
+  const { stamp } = nowWarsaw();
+  const indexRange = `${IMPORTANT_LOGS_SHEET_NAME}!A:A`;
+  const indexUrl = `${SHEETS_API}/spreadsheets/${SPREADSHEET_ID}/values/${encRange(indexRange)}`;
+  const indexRes = await fetch(indexUrl, { headers: await authHeaders(), cache: "no-store" });
+  if (!indexRes.ok) {
+    throw new Error(`Ważne Logs read failed [${indexRes.status}]: ${await indexRes.text()}`);
+  }
+  const indexData = (await indexRes.json()) as { values?: string[][] };
+  const nextRow = Math.max((indexData.values?.length ?? 0) + 1, 2);
+  return {
+    range: `${IMPORTANT_LOGS_SHEET_NAME}!A${nextRow}:B${nextRow}`,
+    values: [[stamp, entry]],
+  };
+}
+
 
 export type ChecklistItem = {
   row: number;
@@ -523,12 +555,16 @@ export const addChecklistItem = createServerFn({ method: "POST" })
       action: "Checklist add",
       details: data.task.slice(0, 500),
     });
+    const wazneLogWrite = await createImportantLogWrite(
+      `Checklist add: "${data.task}"`,
+    );
     await writeRanges([
       {
         range: `${IMPORTANT_SHEET_NAME}!A${row}:D${row}`,
         values: [[data.task, "FALSE", "", ""]],
       },
       logWrite,
+      wazneLogWrite,
     ]);
     return { ok: true };
   });
@@ -555,6 +591,11 @@ export const toggleChecklistItem = createServerFn({ method: "POST" })
       cleanerName: data.done ? data.cleanerName : item?.doneBy,
       details: item?.task?.slice(0, 500) ?? "",
     });
+    const wazneLogWrite = await createImportantLogWrite(
+      data.done
+        ? `Checklist done: "${item?.task ?? ""}" by ${data.cleanerName ?? ""}`
+        : `Checklist undone: "${item?.task ?? ""}"`,
+    );
     await writeRanges([
       {
         range: `${IMPORTANT_SHEET_NAME}!B${data.row}:D${data.row}`,
@@ -565,6 +606,7 @@ export const toggleChecklistItem = createServerFn({ method: "POST" })
         ],
       },
       logWrite,
+      wazneLogWrite,
     ]);
     return { ok: true };
   });
@@ -588,12 +630,16 @@ export const deleteChecklistItem = createServerFn({ method: "POST" })
       action: "Checklist delete",
       details: item?.task?.slice(0, 500) ?? "",
     });
+    const wazneLogWrite = await createImportantLogWrite(
+      `Checklist delete: "${item?.task ?? ""}"`,
+    );
     await writeRanges([
       {
         range: `${IMPORTANT_SHEET_NAME}!A${data.row}:D${data.row}`,
         values: [["", "", "", ""]],
       },
       logWrite,
+      wazneLogWrite,
     ]);
     return { ok: true };
   });
@@ -616,9 +662,13 @@ export const setImportantNotes = createServerFn({ method: "POST" })
       action: "Ważne notes updated",
       details: data.notes ? data.notes.slice(0, 500) : "(cleared)",
     });
+    const wazneLogWrite = await createImportantLogWrite(
+      data.notes ? `Notatki: ${data.notes}` : "Notatki: (cleared)",
+    );
     await writeRanges([
       { range: `${IMPORTANT_SHEET_NAME}!F2`, values: [[data.notes]] },
       logWrite,
+      wazneLogWrite,
     ]);
     return { ok: true };
   });
