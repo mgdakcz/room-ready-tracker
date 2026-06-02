@@ -3,6 +3,7 @@ import { z } from "zod";
 
 const SPREADSHEET_ID = "1hne3vp8EQtLIqdGgGDKFm2I9nr2PlICHBy0dgj4lZsE";
 const SHEET_NAME = "Rooms";
+const LOGS_SHEET_NAME = "Logs";
 const SHEETS_API = "https://sheets.googleapis.com/v4";
 
 // Status values that exist in the sheet's Selection tab + one transient state we add
