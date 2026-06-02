@@ -563,7 +563,7 @@ function ImportantPanel({
             </Button>
           </div>
           {!ownerPin ? (
-            <p className="text-xs text-muted-foreground">​Wpisz PIN żeby dodać zadanie</p>
+            <p className="text-xs text-muted-foreground">​Wpisz PIN żeby dodać zadanie.</p>
           ) : null}
         </form>
       </article>
@@ -591,7 +591,7 @@ function ImportantPanel({
           </Button>
           {!ownerPin ? (
             <p className="text-xs text-muted-foreground">
-              Enter the Owner PIN above to edit notes. Cleaners can read them anytime.
+              ​Wpisz PIN żeby dodać notatkę. 
             </p>
           ) : null}
         </form>
