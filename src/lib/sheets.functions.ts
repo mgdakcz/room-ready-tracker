@@ -591,6 +591,11 @@ export const toggleChecklistItem = createServerFn({ method: "POST" })
       cleanerName: data.done ? data.cleanerName : item?.doneBy,
       details: item?.task?.slice(0, 500) ?? "",
     });
+    const wazneLogWrite = await createImportantLogWrite(
+      data.done
+        ? `Checklist done: "${item?.task ?? ""}" by ${data.cleanerName ?? ""}`
+        : `Checklist undone: "${item?.task ?? ""}"`,
+    );
     await writeRanges([
       {
         range: `${IMPORTANT_SHEET_NAME}!B${data.row}:D${data.row}`,
@@ -601,6 +606,7 @@ export const toggleChecklistItem = createServerFn({ method: "POST" })
         ],
       },
       logWrite,
+      wazneLogWrite,
     ]);
     return { ok: true };
   });
