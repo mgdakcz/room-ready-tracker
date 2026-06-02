@@ -10,23 +10,33 @@ import {
   LogOut,
   Pencil,
   Play,
+  Plus,
   Save,
   ShieldCheck,
   Sparkles,
+  Trash2,
 } from "lucide-react";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
   STATUSES,
+  addChecklistItem,
   clockIn,
   clockOut,
+  deleteChecklistItem,
+  getImportant,
   getRooms,
+  setImportantNotes,
   setRoomNotes,
   setRoomStatus,
+  toggleChecklistItem,
+  type ChecklistItem,
   type Room,
   type RoomStatus,
 } from "@/lib/sheets.functions";
@@ -35,6 +45,12 @@ import { cn } from "@/lib/utils";
 const roomsQueryOptions = queryOptions({
   queryKey: ["rooms"],
   queryFn: () => getRooms(),
+  retry: false,
+});
+
+const importantQueryOptions = queryOptions({
+  queryKey: ["important"],
+  queryFn: () => getImportant(),
   retry: false,
 });
 
@@ -51,8 +67,6 @@ export const Route = createFileRoute("/")({
     try {
       await context.queryClient.ensureQueryData(roomsQueryOptions);
     } catch (error) {
-      // Don't crash SSR if the Sheets API is misconfigured — let the client
-      // render and surface the error via useSuspenseQuery's error boundary.
       console.error("Failed to preload rooms in loader:", error);
     }
   },
@@ -109,7 +123,7 @@ function Index() {
             </div>
           </div>
 
-          <div className="grid gap-3 rounded-md border bg-background p-3 md:grid-cols-[1fr_auto] md:items-center">
+          <div className="grid gap-3 rounded-md border bg-background p-3 md:grid-cols-2">
             <label className="grid gap-2 text-sm font-medium">
               Cleaner name
               <Input
@@ -119,19 +133,16 @@ function Index() {
                 className="h-11"
               />
             </label>
-            <div className="flex flex-wrap gap-2 md:justify-end">
-              {floors.map((floor) => (
-                <Button
-                  key={floor}
-                  type="button"
-                  variant={selectedFloor === floor ? "default" : "outline"}
-                  onClick={() => setSelectedFloor(floor)}
-                  className="h-11"
-                >
-                  {floor === "All" ? "All floors" : floor}
-                </Button>
-              ))}
-            </div>
+            <label className="grid gap-2 text-sm font-medium">
+              Owner PIN
+              <Input
+                value={ownerPin}
+                onChange={(event) => setOwnerPin(event.target.value)}
+                type="password"
+                placeholder="Required for owner actions"
+                className="h-11"
+              />
+            </label>
           </div>
 
           {loadError ? (
@@ -147,23 +158,58 @@ function Index() {
         </div>
       </section>
 
-      <section className="mx-auto grid w-full max-w-7xl gap-4 px-4 py-6 sm:px-6 lg:grid-cols-2 lg:px-8 xl:grid-cols-3">
-        {isLoading && rooms.length === 0 ? (
-          <div className="col-span-full flex items-center justify-center py-12 text-sm text-muted-foreground">
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading rooms…
-          </div>
-        ) : null}
-        {visibleRooms.map((room) => (
-          <RoomCard
-            key={`${room.row}-${room.roomName}`}
-            room={room}
-            cleanerName={cleanerName}
-            ownerPin={ownerPin}
-            setOwnerPin={setOwnerPin}
-            setError={setError}
-            onChanged={() => queryClient.invalidateQueries({ queryKey: ["rooms"] })}
-          />
-        ))}
+      <section className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <Tabs defaultValue="rooms" className="w-full">
+          <TabsList className="mb-4 h-11">
+            <TabsTrigger value="rooms" className="h-9 px-4">
+              Pokoje
+            </TabsTrigger>
+            <TabsTrigger value="important" className="h-9 px-4">
+              Ważne
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="rooms">
+            <div className="mb-4 flex flex-wrap gap-2">
+              {floors.map((floor) => (
+                <Button
+                  key={floor}
+                  type="button"
+                  variant={selectedFloor === floor ? "default" : "outline"}
+                  onClick={() => setSelectedFloor(floor)}
+                  className="h-10"
+                >
+                  {floor === "All" ? "All floors" : floor}
+                </Button>
+              ))}
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+              {isLoading && rooms.length === 0 ? (
+                <div className="col-span-full flex items-center justify-center py-12 text-sm text-muted-foreground">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading rooms…
+                </div>
+              ) : null}
+              {visibleRooms.map((room) => (
+                <RoomCard
+                  key={`${room.row}-${room.roomName}`}
+                  room={room}
+                  cleanerName={cleanerName}
+                  ownerPin={ownerPin}
+                  setError={setError}
+                  onChanged={() => queryClient.invalidateQueries({ queryKey: ["rooms"] })}
+                />
+              ))}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="important">
+            <ImportantPanel
+              cleanerName={cleanerName}
+              ownerPin={ownerPin}
+              setError={setError}
+            />
+          </TabsContent>
+        </Tabs>
       </section>
     </main>
   );
@@ -185,14 +231,12 @@ function RoomCard({
   room,
   cleanerName,
   ownerPin,
-  setOwnerPin,
   setError,
   onChanged,
 }: {
   room: Room;
   cleanerName: string;
   ownerPin: string;
-  setOwnerPin: (pin: string) => void;
   setError: (message: string) => void;
   onChanged: () => void;
 }) {
@@ -282,19 +326,6 @@ function RoomCard({
         </Button>
       </div>
 
-      <div className="mt-4 grid gap-2">
-        <label className="text-sm font-medium" htmlFor={`pin-${room.row}`}>
-          Owner PIN
-        </label>
-        <Input
-          id={`pin-${room.row}`}
-          value={ownerPin}
-          onChange={(event) => setOwnerPin(event.target.value)}
-          type="password"
-          placeholder="Required for manual status changes"
-        />
-      </div>
-
       <div className="mt-3 grid grid-cols-2 gap-2">
         {STATUSES.filter((status) => status !== "Sprzątanie w toku" && status !== "Gotowe").map((status) => (
           <Button
@@ -329,6 +360,216 @@ function RoomCard({
         </Button>
       </form>
     </article>
+  );
+}
+
+function ImportantPanel({
+  cleanerName,
+  ownerPin,
+  setError,
+}: {
+  cleanerName: string;
+  ownerPin: string;
+  setError: (message: string) => void;
+}) {
+  const queryClient = useQueryClient();
+  const { data, error: loadError, isLoading } = useQuery(importantQueryOptions);
+  const tasks: ChecklistItem[] = data?.tasks ?? [];
+  const serverNotes = data?.notes ?? "";
+
+  const [newTask, setNewTask] = useState("");
+  const [notes, setNotes] = useState(serverNotes);
+
+  useEffect(() => {
+    setNotes(serverNotes);
+  }, [serverNotes]);
+
+  const runAdd = useServerFn(addChecklistItem);
+  const runToggle = useServerFn(toggleChecklistItem);
+  const runDelete = useServerFn(deleteChecklistItem);
+  const runSetNotes = useServerFn(setImportantNotes);
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["important"] });
+  const onError = (err: Error) => setError(err.message);
+
+  const addMutation = useMutation({
+    mutationFn: () => runAdd({ data: { task: newTask.trim(), pin: ownerPin } }),
+    onMutate: () => setError(""),
+    onSuccess: () => {
+      setNewTask("");
+      invalidate();
+    },
+    onError,
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: (vars: { row: number; done: boolean }) =>
+      runToggle({
+        data: { row: vars.row, done: vars.done, cleanerName: cleanerName.trim() || undefined },
+      }),
+    onMutate: () => setError(""),
+    onSuccess: invalidate,
+    onError,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (row: number) => runDelete({ data: { row, pin: ownerPin } }),
+    onMutate: () => setError(""),
+    onSuccess: invalidate,
+    onError,
+  });
+
+  const notesMutation = useMutation({
+    mutationFn: () => runSetNotes({ data: { notes, pin: ownerPin } }),
+    onMutate: () => setError(""),
+    onSuccess: invalidate,
+    onError,
+  });
+
+  function handleAdd(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!newTask.trim()) return;
+    addMutation.mutate();
+  }
+
+  function handleSaveNotes(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    notesMutation.mutate();
+  }
+
+  function handleToggle(item: ChecklistItem, next: boolean) {
+    if (next && !cleanerName.trim()) {
+      setError("Enter your name above before checking off a task.");
+      return;
+    }
+    toggleMutation.mutate({ row: item.row, done: next });
+  }
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <article className="flex flex-col rounded-md border bg-card p-4 shadow-sm">
+        <header className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="text-xl font-semibold tracking-tight">Checklist</h2>
+          <span className="text-xs text-muted-foreground">
+            {tasks.filter((t) => t.done).length} / {tasks.length} done
+          </span>
+        </header>
+
+        {loadError ? (
+          <div className="mb-3 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {loadError instanceof Error ? loadError.message : String(loadError)}
+          </div>
+        ) : null}
+
+        <ul className="flex-1 space-y-2">
+          {isLoading && tasks.length === 0 ? (
+            <li className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+            </li>
+          ) : null}
+          {!isLoading && tasks.length === 0 ? (
+            <li className="rounded-md border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
+              No tasks yet. The owner can add one below.
+            </li>
+          ) : null}
+          {tasks.map((item) => (
+            <li
+              key={item.row}
+              className="flex items-start gap-3 rounded-md border bg-background px-3 py-2"
+            >
+              <Checkbox
+                id={`task-${item.row}`}
+                checked={item.done}
+                onCheckedChange={(checked) => handleToggle(item, checked === true)}
+                disabled={toggleMutation.isPending}
+                className="mt-1"
+              />
+              <label
+                htmlFor={`task-${item.row}`}
+                className={cn(
+                  "flex-1 cursor-pointer text-sm",
+                  item.done && "text-muted-foreground line-through",
+                )}
+              >
+                <span className="block font-medium">{item.task}</span>
+                {item.done && item.doneBy ? (
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    ✓ {item.doneBy}
+                    {item.doneAt ? ` · ${item.doneAt}` : ""}
+                  </span>
+                ) : null}
+              </label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => deleteMutation.mutate(item.row)}
+                disabled={!ownerPin || deleteMutation.isPending}
+                title={ownerPin ? "Delete (owner)" : "Owner PIN required"}
+                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </li>
+          ))}
+        </ul>
+
+        <form onSubmit={handleAdd} className="mt-4 grid gap-2 border-t pt-4">
+          <label className="text-sm font-medium" htmlFor="new-task">
+            Add task (owner)
+          </label>
+          <div className="flex gap-2">
+            <Input
+              id="new-task"
+              value={newTask}
+              onChange={(event) => setNewTask(event.target.value)}
+              placeholder="e.g. Restock towels on 2nd floor"
+              className="h-11"
+            />
+            <Button
+              type="submit"
+              disabled={!newTask.trim() || !ownerPin || addMutation.isPending}
+              className="h-11"
+            >
+              {addMutation.isPending ? <Loader2 className="animate-spin" /> : <Plus />}
+              Add
+            </Button>
+          </div>
+          {!ownerPin ? (
+            <p className="text-xs text-muted-foreground">Enter the Owner PIN above to add tasks.</p>
+          ) : null}
+        </form>
+      </article>
+
+      <article className="flex flex-col rounded-md border bg-card p-4 shadow-sm">
+        <header className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="text-xl font-semibold tracking-tight">Notes for tomorrow</h2>
+          <Pencil className="h-4 w-4 text-muted-foreground" />
+        </header>
+        <form onSubmit={handleSaveNotes} className="flex flex-1 flex-col gap-3">
+          <Textarea
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+            placeholder="Important notes the owner wants the cleaner to see…"
+            className="min-h-[260px] flex-1 resize-none"
+            disabled={!ownerPin}
+          />
+          <Button
+            type="submit"
+            disabled={!ownerPin || notes === serverNotes || notesMutation.isPending}
+            className="h-11"
+          >
+            {notesMutation.isPending ? <Loader2 className="animate-spin" /> : <Save />}
+            Save notes
+          </Button>
+          {!ownerPin ? (
+            <p className="text-xs text-muted-foreground">
+              Enter the Owner PIN above to edit notes. Cleaners can read them anytime.
+            </p>
+          ) : null}
+        </form>
+      </article>
+    </div>
   );
 }
 

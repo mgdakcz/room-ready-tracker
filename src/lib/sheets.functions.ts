@@ -4,7 +4,11 @@ import { z } from "zod";
 const SPREADSHEET_ID = "1hne3vp8EQtLIqdGgGDKFm2I9nr2PlICHBy0dgj4lZsE";
 const SHEET_NAME = "Rooms";
 const LOGS_SHEET_NAME = "Logs";
+const IMPORTANT_SHEET_NAME = "Ważne";
 const SHEETS_API = "https://sheets.googleapis.com/v4";
+
+// Encode a range like `Sheet!A1:B2` for the URL path (preserves !, :, /).
+const encRange = (r: string) => encodeURI(r);
 
 // Status values that exist in the sheet's Selection tab + one transient state we add
 export const STATUSES = [
@@ -261,7 +265,7 @@ async function createLogWrite(entry: {
   ];
 
   const indexRange = `${LOGS_SHEET_NAME}!A:A`;
-  const indexUrl = `${SHEETS_API}/spreadsheets/${SPREADSHEET_ID}/values/${indexRange}`;
+  const indexUrl = `${SHEETS_API}/spreadsheets/${SPREADSHEET_ID}/values/${encRange(indexRange)}`;
   const indexRes = await fetch(indexUrl, { headers: await authHeaders(), cache: "no-store" });
   if (!indexRes.ok) {
     throw new Error(`Sheets log read failed [${indexRes.status}]: ${await indexRes.text()}`);
@@ -271,6 +275,96 @@ async function createLogWrite(entry: {
   const nextRow = Math.max((indexData.values?.length ?? 0) + 1, 2);
   return { range: `${LOGS_SHEET_NAME}!A${nextRow}:F${nextRow}`, values: [row] };
 }
+
+// ---------- Ważne (important) sheet ----------
+
+let importantSheetReady = false;
+
+async function ensureImportantSheet() {
+  if (importantSheetReady) return;
+  const metaUrl = `${SHEETS_API}/spreadsheets/${SPREADSHEET_ID}?fields=sheets.properties.title`;
+  const metaRes = await fetch(metaUrl, { headers: await authHeaders(), cache: "no-store" });
+  if (!metaRes.ok) {
+    throw new Error(`Sheets metadata failed [${metaRes.status}]: ${await metaRes.text()}`);
+  }
+  const meta = (await metaRes.json()) as { sheets?: { properties: { title: string } }[] };
+  const exists = meta.sheets?.some((s) => s.properties.title === IMPORTANT_SHEET_NAME);
+  if (!exists) {
+    const addRes = await fetch(`${SHEETS_API}/spreadsheets/${SPREADSHEET_ID}:batchUpdate`, {
+      method: "POST",
+      headers: await authHeaders(),
+      body: JSON.stringify({
+        requests: [{ addSheet: { properties: { title: IMPORTANT_SHEET_NAME } } }],
+      }),
+    });
+    if (!addRes.ok) {
+      throw new Error(`Failed to create "${IMPORTANT_SHEET_NAME}" sheet [${addRes.status}]: ${await addRes.text()}`);
+    }
+    await writeRanges([
+      {
+        range: `${IMPORTANT_SHEET_NAME}!A1:D1`,
+        values: [["Zadanie", "Zrobione", "Przez", "Kiedy"]],
+      },
+      { range: `${IMPORTANT_SHEET_NAME}!F1`, values: [["Notatki"]] },
+    ]);
+  }
+  importantSheetReady = true;
+}
+
+export type ChecklistItem = {
+  row: number;
+  task: string;
+  done: boolean;
+  doneBy: string;
+  doneAt: string;
+};
+
+async function readImportant(): Promise<{ tasks: ChecklistItem[]; notes: string }> {
+  await ensureImportantSheet();
+  const tasksRange = `${IMPORTANT_SHEET_NAME}!A2:D200`;
+  const notesRange = `${IMPORTANT_SHEET_NAME}!F2`;
+  const url = `${SHEETS_API}/spreadsheets/${SPREADSHEET_ID}/values:batchGet?ranges=${encodeURIComponent(
+    tasksRange,
+  )}&ranges=${encodeURIComponent(notesRange)}`;
+  const res = await fetch(url, { headers: await authHeaders(), cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(`Ważne read failed [${res.status}]: ${await res.text()}`);
+  }
+  const data = (await res.json()) as {
+    valueRanges?: { values?: string[][] }[];
+  };
+  const taskRows = data.valueRanges?.[0]?.values ?? [];
+  const notesRows = data.valueRanges?.[1]?.values ?? [];
+  const tasks: ChecklistItem[] = taskRows
+    .map((r, i) => {
+      const cells = [...r];
+      while (cells.length < 4) cells.push("");
+      const doneRaw = (cells[1] ?? "").trim().toUpperCase();
+      return {
+        row: i + 2,
+        task: cells[0] ?? "",
+        done: doneRaw === "TRUE" || doneRaw === "✓" || doneRaw === "YES",
+        doneBy: cells[2] ?? "",
+        doneAt: cells[3] ?? "",
+      };
+    })
+    .filter((t) => t.task.trim() !== "");
+  const notes = notesRows[0]?.[0] ?? "";
+  return { tasks, notes };
+}
+
+async function nextEmptyImportantRow(): Promise<number> {
+  const url = `${SHEETS_API}/spreadsheets/${SPREADSHEET_ID}/values/${encRange(
+    `${IMPORTANT_SHEET_NAME}!A:A`,
+  )}`;
+  const res = await fetch(url, { headers: await authHeaders(), cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(`Ważne index read failed [${res.status}]: ${await res.text()}`);
+  }
+  const data = (await res.json()) as { values?: string[][] };
+  return Math.max((data.values?.length ?? 0) + 1, 2);
+}
+
 
 // ---------- Server functions ----------
 
@@ -399,6 +493,131 @@ export const setRoomNotes = createServerFn({ method: "POST" })
     });
     await writeRanges([
       { range: `${SHEET_NAME}!I${data.row}`, values: [[data.notes]] },
+      logWrite,
+    ]);
+    return { ok: true };
+  });
+
+// ---------- Ważne server functions ----------
+
+export const getImportant = createServerFn({ method: "GET" }).handler(async () => {
+  return readImportant();
+});
+
+export const addChecklistItem = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    z
+      .object({
+        task: z.string().trim().min(1).max(500),
+        pin: z.string().min(1).max(32),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const expected = process.env.OWNER_PIN;
+    if (!expected) throw new Error("OWNER_PIN not configured");
+    if (data.pin !== expected) throw new Error("Invalid PIN");
+    await ensureImportantSheet();
+    const row = await nextEmptyImportantRow();
+    const logWrite = await createLogWrite({
+      action: "Checklist add",
+      details: data.task.slice(0, 500),
+    });
+    await writeRanges([
+      {
+        range: `${IMPORTANT_SHEET_NAME}!A${row}:D${row}`,
+        values: [[data.task, "FALSE", "", ""]],
+      },
+      logWrite,
+    ]);
+    return { ok: true };
+  });
+
+export const toggleChecklistItem = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    z
+      .object({
+        row: z.number().int().min(2).max(200),
+        done: z.boolean(),
+        cleanerName: z.string().trim().max(80).optional(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    if (data.done && (!data.cleanerName || data.cleanerName.length === 0)) {
+      throw new Error("Cleaner name required to check off a task");
+    }
+    const { tasks } = await readImportant();
+    const item = tasks.find((t) => t.row === data.row);
+    const { stamp } = nowWarsaw();
+    const logWrite = await createLogWrite({
+      action: data.done ? "Checklist done" : "Checklist undone",
+      cleanerName: data.done ? data.cleanerName : item?.doneBy,
+      details: item?.task?.slice(0, 500) ?? "",
+    });
+    await writeRanges([
+      {
+        range: `${IMPORTANT_SHEET_NAME}!B${data.row}:D${data.row}`,
+        values: [
+          data.done
+            ? ["TRUE", data.cleanerName ?? "", stamp]
+            : ["FALSE", "", ""],
+        ],
+      },
+      logWrite,
+    ]);
+    return { ok: true };
+  });
+
+export const deleteChecklistItem = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    z
+      .object({
+        row: z.number().int().min(2).max(200),
+        pin: z.string().min(1).max(32),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const expected = process.env.OWNER_PIN;
+    if (!expected) throw new Error("OWNER_PIN not configured");
+    if (data.pin !== expected) throw new Error("Invalid PIN");
+    const { tasks } = await readImportant();
+    const item = tasks.find((t) => t.row === data.row);
+    const logWrite = await createLogWrite({
+      action: "Checklist delete",
+      details: item?.task?.slice(0, 500) ?? "",
+    });
+    await writeRanges([
+      {
+        range: `${IMPORTANT_SHEET_NAME}!A${data.row}:D${data.row}`,
+        values: [["", "", "", ""]],
+      },
+      logWrite,
+    ]);
+    return { ok: true };
+  });
+
+export const setImportantNotes = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    z
+      .object({
+        notes: z.string().max(5000),
+        pin: z.string().min(1).max(32),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const expected = process.env.OWNER_PIN;
+    if (!expected) throw new Error("OWNER_PIN not configured");
+    if (data.pin !== expected) throw new Error("Invalid PIN");
+    await ensureImportantSheet();
+    const logWrite = await createLogWrite({
+      action: "Ważne notes updated",
+      details: data.notes ? data.notes.slice(0, 500) : "(cleared)",
+    });
+    await writeRanges([
+      { range: `${IMPORTANT_SHEET_NAME}!F2`, values: [[data.notes]] },
       logWrite,
     ]);
     return { ok: true };
