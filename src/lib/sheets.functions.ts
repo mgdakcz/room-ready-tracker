@@ -4,7 +4,11 @@ import { z } from "zod";
 const SPREADSHEET_ID = "1hne3vp8EQtLIqdGgGDKFm2I9nr2PlICHBy0dgj4lZsE";
 const SHEET_NAME = "Rooms";
 const LOGS_SHEET_NAME = "Logs";
+const IMPORTANT_SHEET_NAME = "Ważne";
 const SHEETS_API = "https://sheets.googleapis.com/v4";
+
+// Encode a range like `Sheet!A1:B2` for the URL path (preserves !, :, /).
+const encRange = (r: string) => encodeURI(r);
 
 // Status values that exist in the sheet's Selection tab + one transient state we add
 export const STATUSES = [
