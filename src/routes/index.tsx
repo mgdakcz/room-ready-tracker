@@ -587,7 +587,7 @@ function ImportantPanel({
             className="h-11"
           >
             {notesMutation.isPending ? <Loader2 className="animate-spin" /> : <Save />}
-            Save notes
+            Zapisz
           </Button>
           {!ownerPin ? (
             <p className="text-xs text-muted-foreground">
