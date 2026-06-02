@@ -182,22 +182,49 @@ function Index() {
                 </Button>
               ))}
             </div>
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-6">
               {isLoading && rooms.length === 0 ? (
                 <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading rooms…
                 </div>
               ) : null}
-              {visibleRooms.map((room) => (
-                <RoomCard
-                  key={`${room.row}-${room.roomName}`}
-                  room={room}
-                  cleanerName={cleanerName}
-                  ownerPin={ownerPin}
-                  setError={setError}
-                  onChanged={() => queryClient.invalidateQueries({ queryKey: ["rooms"] })}
-                />
-              ))}
+              {([
+                "Priorytet / do sprzątnięcia",
+                "Sprzątanie w toku",
+                "Wolne / do sprzątnięcia",
+                "Gotowe",
+              ] as RoomStatus[]).map((status) => {
+                const group = visibleRooms.filter((r) => r.status === status);
+                if (group.length === 0) return null;
+                return (
+                  <div key={status}>
+                    <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                      <span
+                        className={cn("inline-block h-2 w-2 rounded-full", {
+                          "bg-destructive": status === "Priorytet / do sprzątnięcia",
+                          "bg-primary": status === "Sprzątanie w toku",
+                          "bg-muted-foreground": status === "Wolne / do sprzątnięcia",
+                          "bg-green-500": status === "Gotowe",
+                        })}
+                      />
+                      {status}
+                      <span className="ml-1 text-xs font-normal text-muted-foreground">({group.length})</span>
+                    </h3>
+                    <div className="flex flex-col gap-3">
+                      {group.map((room) => (
+                        <RoomCard
+                          key={`${room.row}-${room.roomName}`}
+                          room={room}
+                          cleanerName={cleanerName}
+                          ownerPin={ownerPin}
+                          setError={setError}
+                          onChanged={() => queryClient.invalidateQueries({ queryKey: ["rooms"] })}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </TabsContent>
 
