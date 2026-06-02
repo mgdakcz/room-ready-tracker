@@ -170,7 +170,7 @@ function Index() {
 
           <TabsContent value="rooms">
             <div className="mb-4 flex flex-wrap gap-2">
-              {floors.map((floor) => (
+              {floors.filter((floor) => floor !== "All").map((floor) => (
                 <Button
                   key={floor}
                   type="button"
@@ -178,7 +178,7 @@ function Index() {
                   onClick={() => setSelectedFloor(floor)}
                   className="h-10"
                 >
-                  {floor === "All" ? "All floors" : floor}
+                  {floor}
                 </Button>
               ))}
             </div>
