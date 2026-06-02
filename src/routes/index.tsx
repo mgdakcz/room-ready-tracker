@@ -110,7 +110,7 @@ function Index() {
               <div className="mb-3 inline-flex items-center gap-2 rounded-md border bg-background px-3 py-1 text-sm text-muted-foreground">
                 <ShieldCheck className="h-4 w-4 text-primary" />
               </div>
-              <h1 className="text-3xl font-semibold tracking-tight md:text-5xl">Room cleaning</h1>
+              <h1 className="text-3xl font-semibold tracking-tight md:text-5xl">Apartamenty | Sprzątanie</h1>
               <p className="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
                 Clock cleaning work directly into the connected Rooms sheet.
               </p>
