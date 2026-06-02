@@ -48,7 +48,13 @@ function pemToArrayBuffer(pem: string): ArrayBuffer {
     .replace(/-----BEGIN [^-]+-----/g, "")
     .replace(/-----END [^-]+-----/g, "")
     .replace(/\s+/g, "");
-  const binary = atob(cleaned);
+  if (!cleaned) throw new Error("Private key body is empty after stripping PEM headers");
+  let binary: string;
+  try {
+    binary = atob(cleaned);
+  } catch {
+    throw new Error("Private key is not valid base64 — check that the secret contains the full PEM with \\n newlines");
+  }
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return bytes.buffer;
