@@ -60,8 +60,8 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const { data } = useSuspenseQuery(roomsQueryOptions);
-  const rooms = data.rooms;
+  const { data, error: loadError, isLoading } = useQuery(roomsQueryOptions);
+  const rooms = data?.rooms ?? [];
   const [cleanerName, setCleanerName] = useState("");
   const [ownerPin, setOwnerPin] = useState("");
   const [selectedFloor, setSelectedFloor] = useState("All");
