@@ -234,6 +234,38 @@ async function writeRange(range: string, values: (string | number)[][]) {
   }
 }
 
+async function appendLog(entry: {
+  action: string;
+  roomId?: string;
+  roomName?: string;
+  cleanerName?: string;
+  details?: string;
+}) {
+  try {
+    const { stamp } = nowWarsaw();
+    const row = [
+      stamp,
+      entry.action,
+      entry.roomId ?? "",
+      entry.roomName ?? "",
+      entry.cleanerName ?? "",
+      entry.details ?? "",
+    ];
+    const range = `${LOGS_SHEET_NAME}!A:F`;
+    const url = `${SHEETS_API}/spreadsheets/${SPREADSHEET_ID}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: await authHeaders(),
+      body: JSON.stringify({ range, majorDimension: "ROWS", values: [row] }),
+    });
+    if (!res.ok) {
+      console.error(`Sheets log append failed [${res.status}]: ${await res.text()}`);
+    }
+  } catch (err) {
+    console.error("appendLog error:", err);
+  }
+}
+
 // ---------- Server functions ----------
 
 export const getRooms = createServerFn({ method: "GET" }).handler(async () => {
