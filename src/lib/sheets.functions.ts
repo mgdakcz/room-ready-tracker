@@ -289,28 +289,59 @@ async function ensureImportantSheet() {
     throw new Error(`Sheets metadata failed [${metaRes.status}]: ${await metaRes.text()}`);
   }
   const meta = (await metaRes.json()) as { sheets?: { properties: { title: string } }[] };
-  const exists = meta.sheets?.some((s) => s.properties.title === IMPORTANT_SHEET_NAME);
-  if (!exists) {
+  const titles = new Set((meta.sheets ?? []).map((s) => s.properties.title));
+
+  const requests: unknown[] = [];
+  if (!titles.has(IMPORTANT_SHEET_NAME)) {
+    requests.push({ addSheet: { properties: { title: IMPORTANT_SHEET_NAME } } });
+  }
+  if (!titles.has(IMPORTANT_LOGS_SHEET_NAME)) {
+    requests.push({ addSheet: { properties: { title: IMPORTANT_LOGS_SHEET_NAME } } });
+  }
+  if (requests.length > 0) {
     const addRes = await fetch(`${SHEETS_API}/spreadsheets/${SPREADSHEET_ID}:batchUpdate`, {
       method: "POST",
       headers: await authHeaders(),
-      body: JSON.stringify({
-        requests: [{ addSheet: { properties: { title: IMPORTANT_SHEET_NAME } } }],
-      }),
+      body: JSON.stringify({ requests }),
     });
     if (!addRes.ok) {
-      throw new Error(`Failed to create "${IMPORTANT_SHEET_NAME}" sheet [${addRes.status}]: ${await addRes.text()}`);
+      throw new Error(`Failed to create Ważne sheets [${addRes.status}]: ${await addRes.text()}`);
     }
-    await writeRanges([
-      {
+    const headerWrites: SheetWrite[] = [];
+    if (!titles.has(IMPORTANT_SHEET_NAME)) {
+      headerWrites.push({
         range: `${IMPORTANT_SHEET_NAME}!A1:D1`,
         values: [["Zadanie", "Zrobione", "Przez", "Kiedy"]],
-      },
-      { range: `${IMPORTANT_SHEET_NAME}!F1`, values: [["Notatki"]] },
-    ]);
+      });
+      headerWrites.push({ range: `${IMPORTANT_SHEET_NAME}!F1`, values: [["Notatki"]] });
+    }
+    if (!titles.has(IMPORTANT_LOGS_SHEET_NAME)) {
+      headerWrites.push({
+        range: `${IMPORTANT_LOGS_SHEET_NAME}!A1:B1`,
+        values: [["Kiedy", "Wpis"]],
+      });
+    }
+    if (headerWrites.length > 0) await writeRanges(headerWrites);
   }
   importantSheetReady = true;
 }
+
+async function createImportantLogWrite(entry: string): Promise<SheetWrite> {
+  const { stamp } = nowWarsaw();
+  const indexRange = `${IMPORTANT_LOGS_SHEET_NAME}!A:A`;
+  const indexUrl = `${SHEETS_API}/spreadsheets/${SPREADSHEET_ID}/values/${encRange(indexRange)}`;
+  const indexRes = await fetch(indexUrl, { headers: await authHeaders(), cache: "no-store" });
+  if (!indexRes.ok) {
+    throw new Error(`Ważne Logs read failed [${indexRes.status}]: ${await indexRes.text()}`);
+  }
+  const indexData = (await indexRes.json()) as { values?: string[][] };
+  const nextRow = Math.max((indexData.values?.length ?? 0) + 1, 2);
+  return {
+    range: `${IMPORTANT_LOGS_SHEET_NAME}!A${nextRow}:B${nextRow}`,
+    values: [[stamp, entry]],
+  };
+}
+
 
 export type ChecklistItem = {
   row: number;
