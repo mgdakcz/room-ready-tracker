@@ -630,12 +630,16 @@ export const deleteChecklistItem = createServerFn({ method: "POST" })
       action: "Checklist delete",
       details: item?.task?.slice(0, 500) ?? "",
     });
+    const wazneLogWrite = await createImportantLogWrite(
+      `Checklist delete: "${item?.task ?? ""}"`,
+    );
     await writeRanges([
       {
         range: `${IMPORTANT_SHEET_NAME}!A${data.row}:D${data.row}`,
         values: [["", "", "", ""]],
       },
       logWrite,
+      wazneLogWrite,
     ]);
     return { ok: true };
   });
