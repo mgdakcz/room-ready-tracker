@@ -117,8 +117,8 @@ function Index() {
             </div>
             <div className="grid grid-cols-3 gap-2 md:min-w-80">
               <Metric label="Priorytet / do sprzątnięcia" value={stats.priorytet} icon={Clock3} />
-              <Metric label="Sprzątanie w toku" value={stats.active} icon={DoorOpen} />
               <Metric label="Wolne / do sprzątnięcia" value={stats.wolne} icon={CheckCircle2} />
+              <Metric label="Sprzątanie w toku" value={stats.active} icon={DoorOpen} />
             </div>
           </div>
 
