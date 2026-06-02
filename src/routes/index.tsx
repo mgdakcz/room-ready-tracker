@@ -577,7 +577,7 @@ function ImportantPanel({
           <Textarea
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
-            placeholder="Important notes the owner wants the cleaner to see…"
+            placeholder=" Informacje ważne na jutro. "
             className="min-h-[260px] flex-1 resize-none"
             disabled={!ownerPin}
           />
