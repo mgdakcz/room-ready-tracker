@@ -94,9 +94,9 @@ function Index() {
 
   const stats = useMemo(
     () => ({
-      ready: rooms.filter((room) => room.status === "Gotowe").length,
-      pending: rooms.filter((room) => room.status.includes("do sprzątnięcia")).length,
+      priorytet: rooms.filter((room) => room.status === "Priorytet / do sprzątnięcia").length,
       active: rooms.filter((room) => room.status === "Sprzątanie w toku").length,
+      wolne: rooms.filter((room) => room.status === "Wolne / do sprzątnięcia").length,
     }),
     [rooms],
   );
