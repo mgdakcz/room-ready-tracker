@@ -662,9 +662,13 @@ export const setImportantNotes = createServerFn({ method: "POST" })
       action: "Ważne notes updated",
       details: data.notes ? data.notes.slice(0, 500) : "(cleared)",
     });
+    const wazneLogWrite = await createImportantLogWrite(
+      data.notes ? `Notatki: ${data.notes}` : "Notatki: (cleared)",
+    );
     await writeRanges([
       { range: `${IMPORTANT_SHEET_NAME}!F2`, values: [[data.notes]] },
       logWrite,
+      wazneLogWrite,
     ]);
     return { ok: true };
   });
