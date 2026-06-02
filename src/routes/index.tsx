@@ -161,7 +161,7 @@ function Index() {
         <Tabs defaultValue="rooms" className="w-full">
           <TabsList className="mb-4 h-11">
             <TabsTrigger value="rooms" className="h-9 px-4">
-              Pokoje
+              Apartamenty
             </TabsTrigger>
             <TabsTrigger value="important" className="h-9 px-4">
               Ważne
