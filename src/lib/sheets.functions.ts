@@ -222,25 +222,34 @@ async function readRows(): Promise<Room[]> {
     .filter((r) => r.roomName.trim() !== "");
 }
 
-async function writeRange(range: string, values: (string | number)[][]) {
-  const url = `${SHEETS_API}/spreadsheets/${SPREADSHEET_ID}/values/${range}?valueInputOption=USER_ENTERED`;
+type SheetWrite = { range: string; values: (string | number)[][] };
+
+async function writeRanges(updates: SheetWrite[]) {
+  const url = `${SHEETS_API}/spreadsheets/${SPREADSHEET_ID}/values:batchUpdate`;
   const res = await fetch(url, {
-    method: "PUT",
+    method: "POST",
     headers: await authHeaders(),
-    body: JSON.stringify({ range, majorDimension: "ROWS", values }),
+    body: JSON.stringify({
+      valueInputOption: "USER_ENTERED",
+      data: updates.map((update) => ({
+        range: update.range,
+        majorDimension: "ROWS",
+        values: update.values,
+      })),
+    }),
   });
   if (!res.ok) {
-    throw new Error(`Sheets write failed [${res.status}]: ${await res.text()}`);
+    throw new Error(`Sheets batch write failed [${res.status}]: ${await res.text()}`);
   }
 }
 
-async function appendLog(entry: {
+async function createLogWrite(entry: {
   action: string;
   roomId?: string;
   roomName?: string;
   cleanerName?: string;
   details?: string;
-}) {
+}): Promise<SheetWrite> {
   const { stamp } = nowWarsaw();
   const row = [
     stamp,
@@ -260,7 +269,7 @@ async function appendLog(entry: {
 
   const indexData = (await indexRes.json()) as { values?: string[][] };
   const nextRow = Math.max((indexData.values?.length ?? 0) + 1, 2);
-  await writeRange(`${LOGS_SHEET_NAME}!A${nextRow}:F${nextRow}`, [row]);
+  return { range: `${LOGS_SHEET_NAME}!A${nextRow}:F${nextRow}`, values: [row] };
 }
 
 // ---------- Server functions ----------
@@ -283,16 +292,20 @@ export const clockIn = createServerFn({ method: "POST" })
     const rooms = await readRows();
     const room = rooms.find((r) => r.row === data.row);
     const { stamp } = nowWarsaw();
-    await writeRange(`${SHEET_NAME}!C${data.row}:G${data.row}`, [
-      ["Sprzątanie w toku", stamp, data.cleanerName, stamp, ""],
-    ]);
-    await appendLog({
+    const logWrite = await createLogWrite({
       action: "Clock in",
       roomId: room?.roomId,
       roomName: room?.roomName,
       cleanerName: data.cleanerName,
       details: `Started at ${stamp}`,
     });
+    await writeRanges([
+      {
+        range: `${SHEET_NAME}!C${data.row}:G${data.row}`,
+        values: [["Sprzątanie w toku", stamp, data.cleanerName, stamp, ""]],
+      },
+      logWrite,
+    ]);
     return { ok: true };
   });
 
@@ -306,16 +319,20 @@ export const clockOut = createServerFn({ method: "POST" })
     if (!room) throw new Error("Room not found");
     const { stamp } = nowWarsaw();
     const totalTime = diffHHMM(room.startTime, stamp);
-    await writeRange(`${SHEET_NAME}!C${data.row}:H${data.row}`, [
-      ["Gotowe", stamp, room.cleanerName, room.startTime, stamp, totalTime],
-    ]);
-    await appendLog({
+    const logWrite = await createLogWrite({
       action: "Clock out",
       roomId: room.roomId,
       roomName: room.roomName,
       cleanerName: room.cleanerName,
       details: `Finished at ${stamp} (total ${totalTime})`,
     });
+    await writeRanges([
+      {
+        range: `${SHEET_NAME}!C${data.row}:H${data.row}`,
+        values: [["Gotowe", stamp, room.cleanerName, room.startTime, stamp, totalTime]],
+      },
+      logWrite,
+    ]);
     return { ok: true };
   });
 
@@ -336,15 +353,20 @@ export const setRoomStatus = createServerFn({ method: "POST" })
     const rooms = await readRows();
     const room = rooms.find((r) => r.row === data.row);
     const { stamp } = nowWarsaw();
-    await writeRange(`${SHEET_NAME}!C${data.row}:H${data.row}`, [
-      [data.status, stamp, "", "", "", ""],
-    ]);
-    await appendLog({
+    const logWrite = await createLogWrite({
       action: "Status change",
       roomId: room?.roomId,
       roomName: room?.roomName,
+      cleanerName: room?.cleanerName,
       details: `Set to "${data.status}" by owner`,
     });
+    await writeRanges([
+      {
+        range: `${SHEET_NAME}!C${data.row}:H${data.row}`,
+        values: [[data.status, stamp, "", "", "", ""]],
+      },
+      logWrite,
+    ]);
     return { ok: true };
   });
 
@@ -368,12 +390,16 @@ export const setRoomNotes = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const rooms = await readRows();
     const room = rooms.find((r) => r.row === data.row);
-    await writeRange(`${SHEET_NAME}!I${data.row}`, [[data.notes]]);
-    await appendLog({
+    const logWrite = await createLogWrite({
       action: "Notes updated",
       roomId: room?.roomId,
       roomName: room?.roomName,
+      cleanerName: room?.cleanerName,
       details: data.notes ? data.notes.slice(0, 500) : "(cleared)",
     });
+    await writeRanges([
+      { range: `${SHEET_NAME}!I${data.row}`, values: [[data.notes]] },
+      logWrite,
+    ]);
     return { ok: true };
   });
