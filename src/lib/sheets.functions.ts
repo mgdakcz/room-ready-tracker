@@ -15,7 +15,7 @@ const encRange = (r: string) => encodeURI(r);
 export const STATUSES = [
   "Gotowe",
   "Wolne / do sprzątnięcia",
-  "Priorytet / do sprzątnięcia",
+  "Priorytet | Do sprzątnięcia",
   "Zajęte",
   "Sprzątanie w toku",
 ] as const;
