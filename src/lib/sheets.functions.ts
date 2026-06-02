@@ -70,8 +70,27 @@ async function getAccessToken(): Promise<string> {
   if (!clientEmail) throw new Error("GOOGLE_SERVICE_ACCOUNT_EMAIL is not configured");
   if (!rawKey) throw new Error("GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY is not configured");
 
-  // Secrets often store PEMs with literal "\n" — normalise to real newlines.
-  const privateKeyPem = rawKey.replace(/\\n/g, "\n");
+  // Secrets often store PEMs with literal "\n" and/or surrounding quotes —
+  // normalise to real newlines and strip wrapping quotes.
+  let privateKeyPem = rawKey.trim();
+  if (
+    (privateKeyPem.startsWith('"') && privateKeyPem.endsWith('"')) ||
+    (privateKeyPem.startsWith("'") && privateKeyPem.endsWith("'"))
+  ) {
+    privateKeyPem = privateKeyPem.slice(1, -1);
+  }
+  privateKeyPem = privateKeyPem.replace(/\\n/g, "\n").replace(/\\r/g, "");
+
+  if (!privateKeyPem.includes("BEGIN PRIVATE KEY")) {
+    if (privateKeyPem.includes("BEGIN RSA PRIVATE KEY")) {
+      throw new Error(
+        "GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY is in PKCS#1 format (BEGIN RSA PRIVATE KEY). Google service account keys are PKCS#8 (BEGIN PRIVATE KEY) — re-download the JSON key from Google Cloud and copy the `private_key` field verbatim.",
+      );
+    }
+    throw new Error(
+      "GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY does not look like a PEM private key. Paste the full `private_key` value from the service account JSON, including the BEGIN/END lines.",
+    );
+  }
 
   const now = Math.floor(Date.now() / 1000);
   const header = { alg: "RS256", typ: "JWT" };
