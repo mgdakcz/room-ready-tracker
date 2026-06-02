@@ -241,29 +241,26 @@ async function appendLog(entry: {
   cleanerName?: string;
   details?: string;
 }) {
-  try {
-    const { stamp } = nowWarsaw();
-    const row = [
-      stamp,
-      entry.action,
-      entry.roomId ?? "",
-      entry.roomName ?? "",
-      entry.cleanerName ?? "",
-      entry.details ?? "",
-    ];
-    const range = `${LOGS_SHEET_NAME}!A:F`;
-    const url = `${SHEETS_API}/spreadsheets/${SPREADSHEET_ID}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: await authHeaders(),
-      body: JSON.stringify({ range, majorDimension: "ROWS", values: [row] }),
-    });
-    if (!res.ok) {
-      console.error(`Sheets log append failed [${res.status}]: ${await res.text()}`);
-    }
-  } catch (err) {
-    console.error("appendLog error:", err);
+  const { stamp } = nowWarsaw();
+  const row = [
+    stamp,
+    entry.action,
+    entry.roomId ?? "",
+    entry.roomName ?? "",
+    entry.cleanerName ?? "",
+    entry.details ?? "",
+  ];
+
+  const indexRange = `${LOGS_SHEET_NAME}!A:A`;
+  const indexUrl = `${SHEETS_API}/spreadsheets/${SPREADSHEET_ID}/values/${indexRange}`;
+  const indexRes = await fetch(indexUrl, { headers: await authHeaders(), cache: "no-store" });
+  if (!indexRes.ok) {
+    throw new Error(`Sheets log read failed [${indexRes.status}]: ${await indexRes.text()}`);
   }
+
+  const indexData = (await indexRes.json()) as { values?: string[][] };
+  const nextRow = Math.max((indexData.values?.length ?? 0) + 1, 2);
+  await writeRange(`${LOGS_SHEET_NAME}!A${nextRow}:F${nextRow}`, [row]);
 }
 
 // ---------- Server functions ----------
