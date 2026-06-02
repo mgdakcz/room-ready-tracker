@@ -559,7 +559,7 @@ function ImportantPanel({
               className="h-11"
             >
               {addMutation.isPending ? <Loader2 className="animate-spin" /> : <Plus />}
-              Add
+              Dodaj
             </Button>
           </div>
           {!ownerPin ? (
