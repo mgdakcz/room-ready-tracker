@@ -35,6 +35,7 @@ import { cn } from "@/lib/utils";
 const roomsQueryOptions = queryOptions({
   queryKey: ["rooms"],
   queryFn: () => getRooms(),
+  retry: false,
 });
 
 export const Route = createFileRoute("/")({
