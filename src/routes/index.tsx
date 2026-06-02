@@ -112,7 +112,7 @@ function Index() {
               </div>
               <h1 className="text-3xl font-semibold tracking-tight md:text-5xl">Apartamenty | Sprzątanie</h1>
               <p className="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
-                Clock cleaning work directly into the connected Rooms sheet.
+                {"\u200b"}
               </p>
             </div>
             <div className="grid grid-cols-3 gap-2 md:min-w-80">
