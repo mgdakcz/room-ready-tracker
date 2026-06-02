@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient, useSuspenseQuery, queryOptions } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery, queryOptions } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -35,6 +35,7 @@ import { cn } from "@/lib/utils";
 const roomsQueryOptions = queryOptions({
   queryKey: ["rooms"],
   queryFn: () => getRooms(),
+  retry: false,
 });
 
 export const Route = createFileRoute("/")({
@@ -46,13 +47,21 @@ export const Route = createFileRoute("/")({
       { property: "og:description", content: "Secure room cleaning clock-in dashboard for Google Sheets tracking." },
     ],
   }),
-  loader: ({ context }) => context.queryClient.ensureQueryData(roomsQueryOptions),
+  loader: async ({ context }) => {
+    try {
+      await context.queryClient.ensureQueryData(roomsQueryOptions);
+    } catch (error) {
+      // Don't crash SSR if the Sheets API is misconfigured — let the client
+      // render and surface the error via useSuspenseQuery's error boundary.
+      console.error("Failed to preload rooms in loader:", error);
+    }
+  },
   component: Index,
 });
 
 function Index() {
-  const { data } = useSuspenseQuery(roomsQueryOptions);
-  const rooms = data.rooms;
+  const { data, error: loadError, isLoading } = useQuery(roomsQueryOptions);
+  const rooms: Room[] = (data?.rooms as Room[] | undefined) ?? [];
   const [cleanerName, setCleanerName] = useState("");
   const [ownerPin, setOwnerPin] = useState("");
   const [selectedFloor, setSelectedFloor] = useState("All");
@@ -125,6 +134,11 @@ function Index() {
             </div>
           </div>
 
+          {loadError ? (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              Failed to load rooms: {loadError instanceof Error ? loadError.message : String(loadError)}
+            </div>
+          ) : null}
           {error ? (
             <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
               {error}
@@ -134,6 +148,11 @@ function Index() {
       </section>
 
       <section className="mx-auto grid w-full max-w-7xl gap-4 px-4 py-6 sm:px-6 lg:grid-cols-2 lg:px-8 xl:grid-cols-3">
+        {isLoading && rooms.length === 0 ? (
+          <div className="col-span-full flex items-center justify-center py-12 text-sm text-muted-foreground">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading rooms…
+          </div>
+        ) : null}
         {visibleRooms.map((room) => (
           <RoomCard
             key={`${room.row}-${room.roomName}`}
