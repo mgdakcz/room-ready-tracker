@@ -405,19 +405,16 @@ function ImportantPanel({
   const queryClient = useQueryClient();
   const { data, error: loadError, isLoading } = useQuery(importantQueryOptions);
   const tasks: ChecklistItem[] = data?.tasks ?? [];
-  const serverNotes = data?.notes ?? "";
+  const comments: Comment[] = data?.comments ?? [];
 
   const [newTask, setNewTask] = useState("");
-  const [notes, setNotes] = useState(serverNotes);
-
-  useEffect(() => {
-    setNotes(serverNotes);
-  }, [serverNotes]);
+  const [newComment, setNewComment] = useState("");
 
   const runAdd = useServerFn(addChecklistItem);
   const runToggle = useServerFn(toggleChecklistItem);
   const runDelete = useServerFn(deleteChecklistItem);
-  const runSetNotes = useServerFn(setImportantNotes);
+  const runAddComment = useServerFn(addComment);
+  const runDeleteComment = useServerFn(deleteComment);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["important"] });
   const onError = (err: Error) => setError(err.message);
@@ -449,8 +446,18 @@ function ImportantPanel({
     onError,
   });
 
-  const notesMutation = useMutation({
-    mutationFn: () => runSetNotes({ data: { notes, pin: ownerPin } }),
+  const addCommentMutation = useMutation({
+    mutationFn: () => runAddComment({ data: { text: newComment.trim(), pin: ownerPin } }),
+    onMutate: () => setError(""),
+    onSuccess: () => {
+      setNewComment("");
+      invalidate();
+    },
+    onError,
+  });
+
+  const deleteCommentMutation = useMutation({
+    mutationFn: (row: number) => runDeleteComment({ data: { row, pin: ownerPin } }),
     onMutate: () => setError(""),
     onSuccess: invalidate,
     onError,
@@ -462,9 +469,10 @@ function ImportantPanel({
     addMutation.mutate();
   }
 
-  function handleSaveNotes(event: FormEvent<HTMLFormElement>) {
+  function handleAddComment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    notesMutation.mutate();
+    if (!newComment.trim()) return;
+    addCommentMutation.mutate();
   }
 
   function handleToggle(item: ChecklistItem, next: boolean) {
@@ -576,26 +584,67 @@ function ImportantPanel({
           <h2 className="text-xl font-semibold tracking-tight">​Ważne na jutro</h2>
           <Pencil className="h-4 w-4 text-muted-foreground" />
         </header>
-        <form onSubmit={handleSaveNotes} className="flex flex-1 flex-col gap-3">
-          <Textarea
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-            placeholder=" Informacje ważne na jutro. "
-            className="min-h-[260px] flex-1 resize-none"
-            disabled={!ownerPin}
-          />
-          <Button
-            type="submit"
-            disabled={!ownerPin || notes === serverNotes || notesMutation.isPending}
-            className="h-11"
-          >
-            {notesMutation.isPending ? <Loader2 className="animate-spin" /> : <Save />}
-            Zapisz
-          </Button>
+
+        <ul className="flex-1 space-y-2">
+          {isLoading && comments.length === 0 ? (
+            <li className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+            </li>
+          ) : null}
+          {!isLoading && comments.length === 0 ? (
+            <li className="rounded-md border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
+              Brak komentarzy. Owner może dodać poniżej.
+            </li>
+          ) : null}
+          {comments.map((item) => (
+            <li
+              key={item.row}
+              className="flex items-start gap-3 rounded-md border bg-background px-3 py-2"
+            >
+              <div className="flex-1 text-sm">
+                <p className="whitespace-pre-wrap font-medium">{item.text}</p>
+                {item.createdAt ? (
+                  <p className="mt-0.5 text-xs text-muted-foreground">{item.createdAt}</p>
+                ) : null}
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => deleteCommentMutation.mutate(item.row)}
+                disabled={!ownerPin || deleteCommentMutation.isPending}
+                title={ownerPin ? "Delete (owner)" : "Owner PIN required"}
+                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </li>
+          ))}
+        </ul>
+
+        <form onSubmit={handleAddComment} className="mt-4 grid gap-2 border-t pt-4">
+          <label className="text-sm font-medium" htmlFor="new-comment">
+            Dodaj komentarz (owner)
+          </label>
+          <div className="flex gap-2">
+            <Textarea
+              id="new-comment"
+              value={newComment}
+              onChange={(event) => setNewComment(event.target.value)}
+              placeholder="Informacja ważna na jutro…"
+              className="min-h-[80px] flex-1 resize-none"
+            />
+            <Button
+              type="submit"
+              disabled={!newComment.trim() || !ownerPin || addCommentMutation.isPending}
+              className="h-11 self-end"
+            >
+              {addCommentMutation.isPending ? <Loader2 className="animate-spin" /> : <Plus />}
+              Dodaj
+            </Button>
+          </div>
           {!ownerPin ? (
-            <p className="text-xs text-muted-foreground">
-              ​Wpisz PIN żeby dodać notatkę. 
-            </p>
+            <p className="text-xs text-muted-foreground">​Wpisz PIN żeby dodać komentarz.</p>
           ) : null}
         </form>
       </article>
