@@ -325,6 +325,10 @@ async function ensureImportantSheet() {
         values: [["Zadanie", "Zrobione", "Przez", "Kiedy"]],
       });
       headerWrites.push({ range: `${IMPORTANT_SHEET_NAME}!F1`, values: [["Notatki"]] });
+      headerWrites.push({
+        range: `${IMPORTANT_SHEET_NAME}!H1:I1`,
+        values: [["Komentarz", "Kiedy"]],
+      });
     }
     if (!titles.has(IMPORTANT_LOGS_SHEET_NAME)) {
       headerWrites.push({
@@ -362,13 +366,24 @@ export type ChecklistItem = {
   doneAt: string;
 };
 
-async function readImportant(): Promise<{ tasks: ChecklistItem[]; notes: string }> {
+export type Comment = {
+  row: number;
+  text: string;
+  createdAt: string;
+};
+
+async function readImportant(): Promise<{
+  tasks: ChecklistItem[];
+  notes: string;
+  comments: Comment[];
+}> {
   await ensureImportantSheet();
   const tasksRange = `${IMPORTANT_SHEET_NAME}!A2:D200`;
   const notesRange = `${IMPORTANT_SHEET_NAME}!F2`;
+  const commentsRange = `${IMPORTANT_SHEET_NAME}!H2:I200`;
   const url = `${SHEETS_API}/spreadsheets/${SPREADSHEET_ID}/values:batchGet?ranges=${encodeURIComponent(
     tasksRange,
-  )}&ranges=${encodeURIComponent(notesRange)}`;
+  )}&ranges=${encodeURIComponent(notesRange)}&ranges=${encodeURIComponent(commentsRange)}`;
   const res = await fetch(url, { headers: await authHeaders(), cache: "no-store" });
   if (!res.ok) {
     throw new Error(`Ważne read failed [${res.status}]: ${await res.text()}`);
@@ -378,6 +393,7 @@ async function readImportant(): Promise<{ tasks: ChecklistItem[]; notes: string 
   };
   const taskRows = data.valueRanges?.[0]?.values ?? [];
   const notesRows = data.valueRanges?.[1]?.values ?? [];
+  const commentRows = data.valueRanges?.[2]?.values ?? [];
   const tasks: ChecklistItem[] = taskRows
     .map((r, i) => {
       const cells = [...r];
@@ -393,7 +409,14 @@ async function readImportant(): Promise<{ tasks: ChecklistItem[]; notes: string 
     })
     .filter((t) => t.task.trim() !== "");
   const notes = notesRows[0]?.[0] ?? "";
-  return { tasks, notes };
+  const comments: Comment[] = commentRows
+    .map((r, i) => {
+      const cells = [...r];
+      while (cells.length < 2) cells.push("");
+      return { row: i + 2, text: cells[0] ?? "", createdAt: cells[1] ?? "" };
+    })
+    .filter((c) => c.text.trim() !== "");
+  return { tasks, notes, comments };
 }
 
 async function nextEmptyImportantRow(): Promise<number> {
@@ -403,6 +426,18 @@ async function nextEmptyImportantRow(): Promise<number> {
   const res = await fetch(url, { headers: await authHeaders(), cache: "no-store" });
   if (!res.ok) {
     throw new Error(`Ważne index read failed [${res.status}]: ${await res.text()}`);
+  }
+  const data = (await res.json()) as { values?: string[][] };
+  return Math.max((data.values?.length ?? 0) + 1, 2);
+}
+
+async function nextEmptyCommentRow(): Promise<number> {
+  const url = `${SHEETS_API}/spreadsheets/${SPREADSHEET_ID}/values/${encRange(
+    `${IMPORTANT_SHEET_NAME}!H:H`,
+  )}`;
+  const res = await fetch(url, { headers: await authHeaders(), cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(`Ważne comments index read failed [${res.status}]: ${await res.text()}`);
   }
   const data = (await res.json()) as { values?: string[][] };
   return Math.max((data.values?.length ?? 0) + 1, 2);
@@ -678,6 +713,73 @@ export const setImportantNotes = createServerFn({ method: "POST" })
     );
     await writeRanges([
       { range: `${IMPORTANT_SHEET_NAME}!F2`, values: [[data.notes]] },
+      logWrite,
+      wazneLogWrite,
+    ]);
+    return { ok: true };
+  });
+
+export const addComment = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    z
+      .object({
+        text: z.string().trim().min(1).max(1000),
+        pin: z.string().min(1).max(32),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const expected = process.env.OWNER_PIN;
+    if (!expected) throw new Error("OWNER_PIN not configured");
+    if (data.pin !== expected) throw new Error("Invalid PIN");
+    await ensureImportantSheet();
+    const row = await nextEmptyCommentRow();
+    const { stamp } = nowWarsaw();
+    const logWrite = await createLogWrite({
+      action: "Comment add",
+      details: data.text.slice(0, 500),
+    });
+    const wazneLogWrite = await createImportantLogWrite(
+      `Comment add: "${data.text}"`,
+    );
+    await writeRanges([
+      {
+        range: `${IMPORTANT_SHEET_NAME}!H${row}:I${row}`,
+        values: [[data.text, stamp]],
+      },
+      logWrite,
+      wazneLogWrite,
+    ]);
+    return { ok: true };
+  });
+
+export const deleteComment = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    z
+      .object({
+        row: z.number().int().min(2).max(200),
+        pin: z.string().min(1).max(32),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const expected = process.env.OWNER_PIN;
+    if (!expected) throw new Error("OWNER_PIN not configured");
+    if (data.pin !== expected) throw new Error("Invalid PIN");
+    const { comments } = await readImportant();
+    const item = comments.find((c) => c.row === data.row);
+    const logWrite = await createLogWrite({
+      action: "Comment delete",
+      details: item?.text?.slice(0, 500) ?? "",
+    });
+    const wazneLogWrite = await createImportantLogWrite(
+      `Comment delete: "${item?.text ?? ""}"`,
+    );
+    await writeRanges([
+      {
+        range: `${IMPORTANT_SHEET_NAME}!H${data.row}:I${data.row}`,
+        values: [["", ""]],
+      },
       logWrite,
       wazneLogWrite,
     ]);
