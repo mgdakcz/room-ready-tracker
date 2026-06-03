@@ -224,7 +224,7 @@ async function readRows(): Promise<Room[]> {
         notes: cells[8],
       } satisfies Room;
     })
-    .filter((r) => r.roomName.trim() !== "");
+    .filter((r) => r.roomId.trim() !== "" || r.roomName.trim() !== "");
 }
 
 type SheetWrite = { range: string; values: (string | number)[][] };
