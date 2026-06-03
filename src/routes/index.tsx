@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   BedDouble,
   CheckCircle2,
+  ChevronRight,
   Clock3,
   DoorOpen,
   Loader2,
