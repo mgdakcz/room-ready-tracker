@@ -14,7 +14,6 @@ import {
   Plus,
   Save,
   ShieldCheck,
-  ShieldCheck,
   Trash2,
 } from "lucide-react";
 import { FormEvent, useMemo, useState } from "react";
