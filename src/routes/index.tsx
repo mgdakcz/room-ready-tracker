@@ -192,16 +192,24 @@ function Index() {
               ) : null}
               {([
                 "Priorytet | Do sprzątnięcia",
-                "Sprzątanie w toku",
                 "Wolne | Do sprzątnięcia",
+                "Sprzątanie w toku",
                 "Zajęte",
                 "Gotowe",
               ] as RoomStatus[]).map((status) => {
                 const group = visibleRooms.filter((r) => r.status === status);
                 if (group.length === 0) return null;
+                const defaultOpen =
+                  status === "Priorytet | Do sprzątnięcia" ||
+                  status === "Wolne | Do sprzątnięcia";
                 return (
-                  <div key={status}>
-                    <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                  <details
+                    key={status}
+                    open={defaultOpen}
+                    className="group rounded-md border bg-card shadow-sm"
+                  >
+                    <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground hover:bg-muted/40">
+                      <ChevronRight className="h-4 w-4 transition-transform group-open:rotate-90" />
                       <span
                         className={cn("inline-block h-2 w-2 rounded-full", {
                           "bg-destructive": status === "Priorytet | Do sprzątnięcia",
@@ -211,9 +219,11 @@ function Index() {
                         })}
                       />
                       {status}
-                      <span className="ml-1 text-xs font-normal text-muted-foreground">({group.length})</span>
-                    </h3>
-                    <div className="flex flex-col gap-3">
+                      <span className="ml-1 text-xs font-normal text-muted-foreground">
+                        ({group.length})
+                      </span>
+                    </summary>
+                    <div className="flex flex-col gap-3 border-t p-3">
                       {group.map((room) => (
                         <RoomCard
                           key={`${room.row}-${room.roomName}`}
@@ -225,7 +235,7 @@ function Index() {
                         />
                       ))}
                     </div>
-                  </div>
+                  </details>
                 );
               })}
             </div>
