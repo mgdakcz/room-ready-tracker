@@ -354,26 +354,26 @@ function RoomCard({
             <span className="hidden sm:inline">Start</span>
           </Button>
         )}
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => statusMutation.mutate("Gotowe")}
-          disabled={isBusy || !ownerPin}
-          className="h-10"
-        >
-          <CheckCircle2 className="h-4 w-4" />
-          <span className="hidden sm:inline">Ready</span>
-        </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() => statusMutation.mutate("Priorytet | Do sprzątnięcia")}
-          disabled={isBusy || !ownerPin}
-          className="h-10"
-        >
-          <Sparkles className="h-4 w-4" />
-          <span className="hidden sm:inline">Priorytet</span>
-        </Button>
+        {ownerPin ? (
+          <Select
+            value={room.status}
+            onValueChange={(value) => {
+              if (value !== room.status) statusMutation.mutate(value as RoomStatus);
+            }}
+            disabled={isBusy}
+          >
+            <SelectTrigger className="h-10 w-[220px]">
+              <SelectValue placeholder="Zmień status" />
+            </SelectTrigger>
+            <SelectContent>
+              {STATUSES.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {s}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : null}
         <Button
           type="button"
           variant="ghost"
