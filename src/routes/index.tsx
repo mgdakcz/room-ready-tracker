@@ -14,7 +14,6 @@ import {
   Plus,
   Save,
   ShieldCheck,
-  Sparkles,
   Trash2,
 } from "lucide-react";
 import { FormEvent, useMemo, useState } from "react";
@@ -23,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -353,26 +353,26 @@ function RoomCard({
             <span className="hidden sm:inline">Start</span>
           </Button>
         )}
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => statusMutation.mutate("Gotowe")}
-          disabled={isBusy || !ownerPin}
-          className="h-10"
-        >
-          <CheckCircle2 className="h-4 w-4" />
-          <span className="hidden sm:inline">Ready</span>
-        </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() => statusMutation.mutate("Priorytet | Do sprzątnięcia")}
-          disabled={isBusy || !ownerPin}
-          className="h-10"
-        >
-          <Sparkles className="h-4 w-4" />
-          <span className="hidden sm:inline">Priorytet</span>
-        </Button>
+        {ownerPin ? (
+          <Select
+            value={room.status}
+            onValueChange={(value) => {
+              if (value !== room.status) statusMutation.mutate(value as RoomStatus);
+            }}
+            disabled={isBusy}
+          >
+            <SelectTrigger className="h-10 w-[220px]">
+              <SelectValue placeholder="Zmień status" />
+            </SelectTrigger>
+            <SelectContent>
+              {STATUSES.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {s}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : null}
         <Button
           type="button"
           variant="ghost"
