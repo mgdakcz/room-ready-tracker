@@ -366,13 +366,24 @@ export type ChecklistItem = {
   doneAt: string;
 };
 
-async function readImportant(): Promise<{ tasks: ChecklistItem[]; notes: string }> {
+export type Comment = {
+  row: number;
+  text: string;
+  createdAt: string;
+};
+
+async function readImportant(): Promise<{
+  tasks: ChecklistItem[];
+  notes: string;
+  comments: Comment[];
+}> {
   await ensureImportantSheet();
   const tasksRange = `${IMPORTANT_SHEET_NAME}!A2:D200`;
   const notesRange = `${IMPORTANT_SHEET_NAME}!F2`;
+  const commentsRange = `${IMPORTANT_SHEET_NAME}!H2:I200`;
   const url = `${SHEETS_API}/spreadsheets/${SPREADSHEET_ID}/values:batchGet?ranges=${encodeURIComponent(
     tasksRange,
-  )}&ranges=${encodeURIComponent(notesRange)}`;
+  )}&ranges=${encodeURIComponent(notesRange)}&ranges=${encodeURIComponent(commentsRange)}`;
   const res = await fetch(url, { headers: await authHeaders(), cache: "no-store" });
   if (!res.ok) {
     throw new Error(`Ważne read failed [${res.status}]: ${await res.text()}`);
@@ -382,6 +393,7 @@ async function readImportant(): Promise<{ tasks: ChecklistItem[]; notes: string 
   };
   const taskRows = data.valueRanges?.[0]?.values ?? [];
   const notesRows = data.valueRanges?.[1]?.values ?? [];
+  const commentRows = data.valueRanges?.[2]?.values ?? [];
   const tasks: ChecklistItem[] = taskRows
     .map((r, i) => {
       const cells = [...r];
@@ -397,7 +409,14 @@ async function readImportant(): Promise<{ tasks: ChecklistItem[]; notes: string 
     })
     .filter((t) => t.task.trim() !== "");
   const notes = notesRows[0]?.[0] ?? "";
-  return { tasks, notes };
+  const comments: Comment[] = commentRows
+    .map((r, i) => {
+      const cells = [...r];
+      while (cells.length < 2) cells.push("");
+      return { row: i + 2, text: cells[0] ?? "", createdAt: cells[1] ?? "" };
+    })
+    .filter((c) => c.text.trim() !== "");
+  return { tasks, notes, comments };
 }
 
 async function nextEmptyImportantRow(): Promise<number> {
@@ -407,6 +426,18 @@ async function nextEmptyImportantRow(): Promise<number> {
   const res = await fetch(url, { headers: await authHeaders(), cache: "no-store" });
   if (!res.ok) {
     throw new Error(`Ważne index read failed [${res.status}]: ${await res.text()}`);
+  }
+  const data = (await res.json()) as { values?: string[][] };
+  return Math.max((data.values?.length ?? 0) + 1, 2);
+}
+
+async function nextEmptyCommentRow(): Promise<number> {
+  const url = `${SHEETS_API}/spreadsheets/${SPREADSHEET_ID}/values/${encRange(
+    `${IMPORTANT_SHEET_NAME}!H:H`,
+  )}`;
+  const res = await fetch(url, { headers: await authHeaders(), cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(`Ważne comments index read failed [${res.status}]: ${await res.text()}`);
   }
   const data = (await res.json()) as { values?: string[][] };
   return Math.max((data.values?.length ?? 0) + 1, 2);
