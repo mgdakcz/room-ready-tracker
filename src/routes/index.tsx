@@ -192,6 +192,7 @@ function Index() {
                 "Priorytet | Do sprzątnięcia",
                 "Sprzątanie w toku",
                 "Wolne | Do sprzątnięcia",
+                "Zajęte",
                 "Gotowe",
               ] as RoomStatus[]).map((status) => {
                 const group = visibleRooms.filter((r) => r.status === status);
