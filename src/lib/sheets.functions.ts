@@ -718,3 +718,70 @@ export const setImportantNotes = createServerFn({ method: "POST" })
     ]);
     return { ok: true };
   });
+
+export const addComment = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    z
+      .object({
+        text: z.string().trim().min(1).max(1000),
+        pin: z.string().min(1).max(32),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const expected = process.env.OWNER_PIN;
+    if (!expected) throw new Error("OWNER_PIN not configured");
+    if (data.pin !== expected) throw new Error("Invalid PIN");
+    await ensureImportantSheet();
+    const row = await nextEmptyCommentRow();
+    const { stamp } = nowWarsaw();
+    const logWrite = await createLogWrite({
+      action: "Comment add",
+      details: data.text.slice(0, 500),
+    });
+    const wazneLogWrite = await createImportantLogWrite(
+      `Comment add: "${data.text}"`,
+    );
+    await writeRanges([
+      {
+        range: `${IMPORTANT_SHEET_NAME}!H${row}:I${row}`,
+        values: [[data.text, stamp]],
+      },
+      logWrite,
+      wazneLogWrite,
+    ]);
+    return { ok: true };
+  });
+
+export const deleteComment = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    z
+      .object({
+        row: z.number().int().min(2).max(200),
+        pin: z.string().min(1).max(32),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const expected = process.env.OWNER_PIN;
+    if (!expected) throw new Error("OWNER_PIN not configured");
+    if (data.pin !== expected) throw new Error("Invalid PIN");
+    const { comments } = await readImportant();
+    const item = comments.find((c) => c.row === data.row);
+    const logWrite = await createLogWrite({
+      action: "Comment delete",
+      details: item?.text?.slice(0, 500) ?? "",
+    });
+    const wazneLogWrite = await createImportantLogWrite(
+      `Comment delete: "${item?.text ?? ""}"`,
+    );
+    await writeRanges([
+      {
+        range: `${IMPORTANT_SHEET_NAME}!H${data.row}:I${data.row}`,
+        values: [["", ""]],
+      },
+      logWrite,
+      wazneLogWrite,
+    ]);
+    return { ok: true };
+  });
