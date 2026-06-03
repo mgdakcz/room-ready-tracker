@@ -206,6 +206,17 @@ async function readRows(): Promise<Room[]> {
   }
   const data = (await res.json()) as { values?: string[][] };
   const rows = data.values ?? [];
+  const normalizeStatus = (raw: string): string => {
+    const s = (raw ?? "").trim();
+    if (!s) return "";
+    const lower = s.toLowerCase();
+    if (lower.includes("priorytet")) return "Priorytet | Do sprzątnięcia";
+    if (lower.includes("sprzątanie w toku") || lower.includes("w toku")) return "Sprzątanie w toku";
+    if (lower.includes("gotowe")) return "Gotowe";
+    if (lower.includes("zajęte")) return "Zajęte";
+    if (lower.includes("wolne")) return "Wolne | Do sprzątnięcia";
+    return s;
+  };
   return rows
     .map((r, i) => {
       const cells = [...r];
@@ -215,7 +226,7 @@ async function readRows(): Promise<Room[]> {
         roomId: cells[0],
         roomName: cells[1],
         floor: "",
-        status: cells[2],
+        status: normalizeStatus(cells[2]),
         timeStamp: cells[3],
         cleanerName: cells[4],
         startTime: cells[5],
