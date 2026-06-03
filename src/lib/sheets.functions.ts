@@ -325,6 +325,10 @@ async function ensureImportantSheet() {
         values: [["Zadanie", "Zrobione", "Przez", "Kiedy"]],
       });
       headerWrites.push({ range: `${IMPORTANT_SHEET_NAME}!F1`, values: [["Notatki"]] });
+      headerWrites.push({
+        range: `${IMPORTANT_SHEET_NAME}!H1:I1`,
+        values: [["Komentarz", "Kiedy"]],
+      });
     }
     if (!titles.has(IMPORTANT_LOGS_SHEET_NAME)) {
       headerWrites.push({
