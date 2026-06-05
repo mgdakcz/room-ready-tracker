@@ -149,7 +149,6 @@ function Index() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Szukaj apartamentu"
-            className="h-11"
           />
 
           <div className="grid gap-3 rounded-md border bg-background p-3 md:grid-cols-2">
@@ -159,7 +158,6 @@ function Index() {
                 value={cleanerName}
                 onChange={(event) => setCleanerName(event.target.value)}
                 placeholder="Osoby sprzątające apartament"
-                className="h-11"
               />
             </label>
             <label className="grid gap-2 text-sm font-medium">
@@ -169,7 +167,6 @@ function Index() {
                 onChange={(event) => setOwnerPin(event.target.value)}
                 type="password"
                 placeholder="Wymagany dla dodatkowych opcji"
-                className="h-11"
               />
             </label>
           </div>
@@ -622,7 +619,6 @@ function ImportantPanel({
               value={newTask}
               onChange={(event) => setNewTask(event.target.value)}
               placeholder="Dodaj dostawkę w apartamencie nr 2"
-              className="h-11"
             />
             <Button
               type="submit"
