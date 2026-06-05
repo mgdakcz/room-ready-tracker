@@ -104,6 +104,15 @@ function Index() {
     [rooms],
   );
 
+  const focusStatus = (status: RoomStatus) => {
+    const id = `status-${status}`;
+    if (typeof document === "undefined") return;
+    const el = document.getElementById(id) as HTMLDetailsElement | null;
+    if (!el) return;
+    el.open = true;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
     <main className="min-h-screen bg-background text-foreground">
       <section className="border-b bg-muted/30">
@@ -119,9 +128,9 @@ function Index() {
               </p>
             </div>
             <div className="grid grid-cols-3 gap-2 md:min-w-80">
-              <Metric label="Priorytet | Do sprzątnięcia" value={stats.priorytet} icon={Clock3} />
-              <Metric label="Wolne | Do sprzątnięcia" value={stats.wolne} icon={CheckCircle2} />
-              <Metric label="Sprzątanie w toku" value={stats.active} icon={DoorOpen} />
+              <Metric label="Priorytet | Do sprzątnięcia" value={stats.priorytet} icon={Clock3} onClick={() => focusStatus("Priorytet | Do sprzątnięcia")} />
+              <Metric label="Wolne | Do sprzątnięcia" value={stats.wolne} icon={CheckCircle2} onClick={() => focusStatus("Wolne | Do sprzątnięcia")} />
+              <Metric label="Sprzątanie w toku" value={stats.active} icon={DoorOpen} onClick={() => focusStatus("Sprzątanie w toku")} />
             </div>
           </div>
 
@@ -206,8 +215,9 @@ function Index() {
                 return (
                   <details
                     key={status}
+                    id={`status-${status}`}
                     open={defaultOpen}
-                    className="group rounded-md border bg-card shadow-sm"
+                    className="group rounded-md border bg-card shadow-sm scroll-mt-4"
                   >
                     <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground hover:bg-muted/40">
                       <ChevronRight className="h-4 w-4 transition-transform group-open:rotate-90" />
@@ -255,15 +265,29 @@ function Index() {
   );
 }
 
-function Metric({ label, value, icon: Icon }: { label: string; value: number; icon: typeof CheckCircle2 }) {
+function Metric({
+  label,
+  value,
+  icon: Icon,
+  onClick,
+}: {
+  label: string;
+  value: number;
+  icon: typeof CheckCircle2;
+  onClick?: () => void;
+}) {
   return (
-    <div className="rounded-md border bg-background p-3">
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded-md border bg-background p-3 text-left transition-colors hover:bg-muted/40 focus:outline-none focus:ring-2 focus:ring-ring"
+    >
       <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
         <Icon className="h-4 w-4 text-primary" />
         {label}
       </div>
       <div className="mt-2 text-2xl font-semibold tabular-nums">{value}</div>
-    </div>
+    </button>
   );
 }
 
