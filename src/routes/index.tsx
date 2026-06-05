@@ -305,13 +305,13 @@ function Metric({
     <button
       type="button"
       onClick={onClick}
-      className="rounded-md border bg-background p-3 text-left transition-colors hover:bg-muted/40 focus:outline-none focus:ring-2 focus:ring-ring"
+      className="rounded-md border border-baltic-200 bg-background p-3 text-left transition-colors hover:bg-baltic-50 focus:outline-none focus:ring-2 focus:ring-baltic-500"
     >
       <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-        <Icon className="h-4 w-4 text-primary" />
+        <Icon className="h-4 w-4 text-baltic-500" />
         {label}
       </div>
-      <div className="mt-2 text-2xl font-semibold tabular-nums">{value}</div>
+      <div className="mt-2 text-2xl font-semibold tabular-nums text-baltic-800">{value}</div>
     </button>
   );
 }
