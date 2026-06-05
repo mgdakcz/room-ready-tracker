@@ -78,6 +78,9 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   const { data, error: loadError, isLoading } = useQuery(roomsQueryOptions);
+  const { data: importantData } = useQuery(importantQueryOptions);
+  const hasImportant =
+    (importantData?.tasks?.length ?? 0) > 0 || (importantData?.comments?.length ?? 0) > 0;
   const rooms: Room[] = (data?.rooms as Room[] | undefined) ?? [];
   const [cleanerName, setCleanerName] = useState("");
   const [ownerPin, setOwnerPin] = useState("");
@@ -190,7 +193,14 @@ function Index() {
             <TabsTrigger value="rooms" className="h-9 px-4">
               Apartamenty
             </TabsTrigger>
-            <TabsTrigger value="important" className="h-9 px-4">
+            <TabsTrigger
+              value="important"
+              className={cn(
+                "h-9 px-4",
+                hasImportant &&
+                  "animate-pulse bg-red-200 text-red-900 data-[state=active]:bg-red-200 data-[state=active]:text-red-900",
+              )}
+            >
               Ważne
             </TabsTrigger>
           </TabsList>
