@@ -104,6 +104,15 @@ function Index() {
     [rooms],
   );
 
+  const focusStatus = (status: RoomStatus) => {
+    const id = `status-${status}`;
+    if (typeof document === "undefined") return;
+    const el = document.getElementById(id) as HTMLDetailsElement | null;
+    if (!el) return;
+    el.open = true;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
     <main className="min-h-screen bg-background text-foreground">
       <section className="border-b bg-muted/30">
