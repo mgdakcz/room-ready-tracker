@@ -142,6 +142,13 @@ function Index() {
             </div>
           </div>
 
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Szukaj apartamentu"
+            className="h-11"
+          />
+
           <div className="grid gap-3 rounded-md border bg-background p-3 md:grid-cols-2">
             <label className="grid gap-2 text-sm font-medium">
               Sprzątający
