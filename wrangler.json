@@ -5,7 +5,7 @@
     "binding": "ASSETS",
     "directory": "dist/client"
   },
-  "name": "tanstack-start-ts",
+  "name": "room-ready-tracker",
   "compatibility_flags": ["nodejs_compat"],
   "no_bundle": true,
   "rules": [
