@@ -190,7 +190,14 @@ function Index() {
             <TabsTrigger value="rooms" className="h-9 px-4">
               Apartamenty
             </TabsTrigger>
-            <TabsTrigger value="important" className="h-9 px-4">
+            <TabsTrigger
+              value="important"
+              className={cn(
+                "h-9 px-4",
+                hasImportant &&
+                  "animate-pulse bg-red-200 text-red-900 data-[state=active]:bg-red-200 data-[state=active]:text-red-900",
+              )}
+            >
               Ważne
             </TabsTrigger>
           </TabsList>
