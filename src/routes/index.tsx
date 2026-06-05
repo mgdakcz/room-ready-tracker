@@ -304,7 +304,7 @@ function Metric({
       onClick={onClick}
       className="rounded-md border border-baltic-200 bg-background p-3 text-left transition-colors hover:bg-baltic-50 focus:outline-none focus:ring-2 focus:ring-baltic-500"
     >
-      <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+      <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground text-slate-700">
         <Icon className="h-4 w-4 text-baltic-500" />
         {label}
       </div>
