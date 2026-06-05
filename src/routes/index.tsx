@@ -92,9 +92,16 @@ function Index() {
   }, [rooms]);
 
   const visibleRooms = useMemo(() => {
-    if (selectedFloor === "All") return rooms;
-    return rooms.filter((room) => room.floor === selectedFloor);
-  }, [rooms, selectedFloor]);
+    const q = search.trim().toLowerCase();
+    return rooms.filter((room) => {
+      if (selectedFloor !== "All" && room.floor !== selectedFloor) return false;
+      if (!q) return true;
+      return (
+        (room.roomId ?? "").toLowerCase().includes(q) ||
+        (room.roomName ?? "").toLowerCase().includes(q)
+      );
+    });
+  }, [rooms, selectedFloor, search]);
 
   const stats = useMemo(
     () => ({
