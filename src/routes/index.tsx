@@ -264,15 +264,29 @@ function Index() {
   );
 }
 
-function Metric({ label, value, icon: Icon }: { label: string; value: number; icon: typeof CheckCircle2 }) {
+function Metric({
+  label,
+  value,
+  icon: Icon,
+  onClick,
+}: {
+  label: string;
+  value: number;
+  icon: typeof CheckCircle2;
+  onClick?: () => void;
+}) {
   return (
-    <div className="rounded-md border bg-background p-3">
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded-md border bg-background p-3 text-left transition-colors hover:bg-muted/40 focus:outline-none focus:ring-2 focus:ring-ring"
+    >
       <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
         <Icon className="h-4 w-4 text-primary" />
         {label}
       </div>
       <div className="mt-2 text-2xl font-semibold tabular-nums">{value}</div>
-    </div>
+    </button>
   );
 }
 
