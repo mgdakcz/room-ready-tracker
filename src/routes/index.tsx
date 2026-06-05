@@ -557,7 +557,7 @@ function ImportantPanel({
           ) : null}
           {!isLoading && tasks.length === 0 ? (
             <li className="rounded-md border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
-              No tasks yet. The owner can add one below.
+              Brak nowych zadań. Owner może dodać zadania po wpisaniu kodu PIN.
             </li>
           ) : null}
           {tasks.map((item) => (
