@@ -161,27 +161,27 @@ function Index() {
                       <section className="space-y-3 text-sm text-slate-700">
                         <h3 className="text-base font-semibold text-baltic-800">🇵🇱 Polski</h3>
                         <ol className="list-decimal space-y-2 pl-5">
-                          <li>Wpisz swoje imię w polu <strong>Sprzątający</strong>.</li>
-                          <li>Znajdź apartament — użyj wyszukiwarki <strong>Szukaj apartamentu</strong> lub wybierz piętro.</li>
-                          <li>Kliknij apartament, aby zobaczyć szczegóły i listę zadań.</li>
-                          <li>Naciśnij <strong>Rozpocznij sprzątanie</strong>, gdy zaczynasz pracę w pokoju.</li>
-                          <li>Odznaczaj zadania na liście kontrolnej w miarę ich wykonywania.</li>
-                          <li>Po zakończeniu kliknij <strong>Zakończ sprzątanie</strong>.</li>
-                          <li>Dodawaj komentarze, jeśli coś wymaga uwagi właściciela.</li>
-                          <li>W zakładce <strong>Ważne</strong> znajdziesz pilne zgłoszenia.</li>
+                          <li>Wpisz imiona osób sprzątających apartament w polu <strong>Sprzątający</strong>.</li>
+                          <li>Użyj wyszukiwarki <strong>Szukaj apartamentu</strong> lub wybierz apartament z listy <strong>Wolne | do sprzątnięcia</strong> lub <strong>Priorytet | do sprzątnięcia</strong>.</li>
+                          <li>Naciśnij ikonę <strong>Rozpocznij sprzątanie</strong>, gdy zaczynasz pracę w apartamencie.</li>
+                          <li>Po zakończeniu kliknij ikonę <strong>Zakończ sprzątanie</strong>.</li>
+                          <li>Dodawaj <strong>Komentarze</strong> jeśli coś w apartamencie wymaga uwagi.</li>
+                          <li>W zakładce <strong>Ważne</strong> znajdziesz ważne informacje na kolejny dzień oraz aktualną listę zadań (dostawki, psy itd.).</li>
+                          <li>Jeśli pole <strong>Ważne</strong> jest czerwone, koniecznie przejdź do zakładki <strong>Ważne</strong>.</li>
+                          <li>Odznaczaj zadania na liście zadań, żeby dać znać innym co zostało zrobione.</li>
                         </ol>
                       </section>
                       <section className="space-y-3 text-sm text-slate-700">
                         <h3 className="text-base font-semibold text-baltic-800">🇺🇦 Українська</h3>
                         <ol className="list-decimal space-y-2 pl-5">
-                          <li>Введіть своє ім'я в полі <strong>Sprzątający</strong> (Прибиральник).</li>
-                          <li>Знайдіть апартамент — скористайтеся пошуком <strong>Szukaj apartamentu</strong> або оберіть поверх.</li>
-                          <li>Натисніть на апартамент, щоб переглянути деталі та список завдань.</li>
-                          <li>Натисніть <strong>Rozpocznij sprzątanie</strong> (Почати прибирання), коли починаєте роботу.</li>
-                          <li>Позначайте виконані пункти у контрольному списку.</li>
-                          <li>Після завершення натисніть <strong>Zakończ sprzątanie</strong> (Завершити прибирання).</li>
-                          <li>Додавайте коментарі, якщо щось потребує уваги власника.</li>
-                          <li>У вкладці <strong>Ważne</strong> (Важливе) знаходяться термінові повідомлення.</li>
+                          <li>Введіть імена осіб, які прибирають апартамент, у полі <strong>Sprzątający</strong> (Прибиральники).</li>
+                          <li>Скористайтеся пошуком <strong>Szukaj apartamentu</strong> (Пошук апартаменту) або оберіть апартамент зі списку <strong>Wolne | do sprzątnięcia</strong> (Вільні | до прибирання) чи <strong>Priorytet | do sprzątnięcia</strong> (Пріоритет | до прибирання).</li>
+                          <li>Натисніть іконку <strong>Rozpocznij sprzątanie</strong> (Почати прибирання), коли починаєте роботу в апартаменті.</li>
+                          <li>Після завершення натисніть іконку <strong>Zakończ sprzątanie</strong> (Завершити прибирання).</li>
+                          <li>Додавайте <strong>Komentarze</strong> (Коментарі), якщо щось в апартаменті потребує уваги.</li>
+                          <li>У вкладці <strong>Ważne</strong> (Важливе) знайдете важливу інформацію на наступний день та актуальний список завдань (додаткові ліжка, собаки тощо).</li>
+                          <li>Якщо поле <strong>Ważne</strong> (Важливе) червоне, обов'язково перейдіть до вкладки <strong>Ważne</strong>.</li>
+                          <li>Відмічайте виконані пункти у списку завдань, щоб повідомити інших, що вже зроблено.</li>
                         </ol>
                       </section>
                     </div>
