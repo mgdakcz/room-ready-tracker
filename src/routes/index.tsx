@@ -99,10 +99,7 @@ function Index() {
     return rooms.filter((room) => {
       if (selectedFloor !== "All" && room.floor !== selectedFloor) return false;
       if (!q) return true;
-      return (
-        (room.roomId ?? "").toLowerCase().includes(q) ||
-        (room.roomName ?? "").toLowerCase().includes(q)
-      );
+      return (room.roomId ?? "").toLowerCase() === q;
     });
   }, [rooms, selectedFloor, search]);
 
