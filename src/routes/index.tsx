@@ -82,6 +82,7 @@ function Index() {
   const [cleanerName, setCleanerName] = useState("");
   const [ownerPin, setOwnerPin] = useState("");
   const [selectedFloor, setSelectedFloor] = useState("All");
+  const [search, setSearch] = useState("");
   const [error, setError] = useState("");
   const queryClient = useQueryClient();
 
