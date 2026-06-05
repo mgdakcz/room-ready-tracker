@@ -145,9 +145,9 @@ function Index() {
                     <button
                       type="button"
                       aria-label="Instrukcja / Інструкція"
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-baltic-200 bg-background text-baltic-600 transition-colors hover:bg-baltic-100 hover:text-baltic-800"
+                      className="inline-flex items-center gap-2 rounded-md border border-baltic-200 bg-background px-3 py-1 text-sm text-muted-foreground transition-colors hover:bg-baltic-100 hover:text-baltic-800"
                     >
-                      <HelpCircle className="h-4 w-4" />
+                      <HelpCircle className="h-4 w-4 text-baltic-500" />
                     </button>
                   </DialogTrigger>
                   <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
