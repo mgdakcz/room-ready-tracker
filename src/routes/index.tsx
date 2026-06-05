@@ -78,6 +78,9 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   const { data, error: loadError, isLoading } = useQuery(roomsQueryOptions);
+  const { data: importantData } = useQuery(importantQueryOptions);
+  const hasImportant =
+    (importantData?.tasks?.length ?? 0) > 0 || (importantData?.comments?.length ?? 0) > 0;
   const rooms: Room[] = (data?.rooms as Room[] | undefined) ?? [];
   const [cleanerName, setCleanerName] = useState("");
   const [ownerPin, setOwnerPin] = useState("");
