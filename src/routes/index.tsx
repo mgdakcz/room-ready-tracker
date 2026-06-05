@@ -126,14 +126,14 @@ function Index() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <section className="border-b bg-muted/30">
+      <section className="border-b border-baltic-200 bg-baltic-50">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
             <div>
-              <div className="mb-3 inline-flex items-center gap-2 rounded-md border bg-background px-3 py-1 text-sm text-muted-foreground">
-                <ShieldCheck className="h-4 w-4 text-primary" />
+              <div className="mb-3 inline-flex items-center gap-2 rounded-md border border-baltic-200 bg-background px-3 py-1 text-sm text-muted-foreground">
+                <ShieldCheck className="h-4 w-4 text-baltic-500" />
               </div>
-              <h1 className="text-3xl font-semibold tracking-tight md:text-5xl">Apartamenty | Sprzątanie</h1>
+              <h1 className="text-3xl font-semibold tracking-tight text-baltic-800 md:text-5xl">Apartamenty | Sprzątanie</h1>
               <p className="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
                 {"\u200b"}
               </p>
