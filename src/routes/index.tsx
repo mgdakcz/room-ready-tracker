@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Clock3,
   DoorOpen,
+  HelpCircle,
   Loader2,
   LogOut,
   Pencil,
@@ -16,6 +17,14 @@ import {
   ShieldCheck,
   Trash2,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { FormEvent, useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -127,8 +136,57 @@ function Index() {
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
             <div>
-              <div className="mb-3 inline-flex items-center gap-2 rounded-md border border-baltic-200 bg-background px-3 py-1 text-sm text-muted-foreground">
-                <ShieldCheck className="h-4 w-4 text-baltic-500" />
+              <div className="mb-3 inline-flex items-center gap-2">
+                <div className="inline-flex items-center gap-2 rounded-md border border-baltic-200 bg-background px-3 py-1 text-sm text-muted-foreground">
+                  <ShieldCheck className="h-4 w-4 text-baltic-500" />
+                </div>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label="Instrukcja / Інструкція"
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-baltic-200 bg-background text-baltic-600 transition-colors hover:bg-baltic-100 hover:text-baltic-800"
+                    >
+                      <HelpCircle className="h-4 w-4" />
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+                    <DialogHeader>
+                      <DialogTitle>Instrukcja obsługi / Інструкція користування</DialogTitle>
+                      <DialogDescription>
+                        Jak korzystać z aplikacji do sprzątania apartamentów. / Як користуватися застосунком для прибирання апартаментів.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-6 md:grid-cols-2">
+                      <section className="space-y-3 text-sm text-slate-700">
+                        <h3 className="text-base font-semibold text-baltic-800">🇵🇱 Polski</h3>
+                        <ol className="list-decimal space-y-2 pl-5">
+                          <li>Wpisz swoje imię w polu <strong>Sprzątający</strong>.</li>
+                          <li>Znajdź apartament — użyj wyszukiwarki <strong>Szukaj apartamentu</strong> lub wybierz piętro.</li>
+                          <li>Kliknij apartament, aby zobaczyć szczegóły i listę zadań.</li>
+                          <li>Naciśnij <strong>Rozpocznij sprzątanie</strong>, gdy zaczynasz pracę w pokoju.</li>
+                          <li>Odznaczaj zadania na liście kontrolnej w miarę ich wykonywania.</li>
+                          <li>Po zakończeniu kliknij <strong>Zakończ sprzątanie</strong>.</li>
+                          <li>Dodawaj komentarze, jeśli coś wymaga uwagi właściciela.</li>
+                          <li>W zakładce <strong>Ważne</strong> znajdziesz pilne zgłoszenia.</li>
+                        </ol>
+                      </section>
+                      <section className="space-y-3 text-sm text-slate-700">
+                        <h3 className="text-base font-semibold text-baltic-800">🇺🇦 Українська</h3>
+                        <ol className="list-decimal space-y-2 pl-5">
+                          <li>Введіть своє ім'я в полі <strong>Sprzątający</strong> (Прибиральник).</li>
+                          <li>Знайдіть апартамент — скористайтеся пошуком <strong>Szukaj apartamentu</strong> або оберіть поверх.</li>
+                          <li>Натисніть на апартамент, щоб переглянути деталі та список завдань.</li>
+                          <li>Натисніть <strong>Rozpocznij sprzątanie</strong> (Почати прибирання), коли починаєте роботу.</li>
+                          <li>Позначайте виконані пункти у контрольному списку.</li>
+                          <li>Після завершення натисніть <strong>Zakończ sprzątanie</strong> (Завершити прибирання).</li>
+                          <li>Додавайте коментарі, якщо щось потребує уваги власника.</li>
+                          <li>У вкладці <strong>Ważne</strong> (Важливе) знаходяться термінові повідомлення.</li>
+                        </ol>
+                      </section>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </div>
               <h1 className="text-3xl tracking-tight text-baltic-800 md:text-5xl font-bold text-slate-700">Apartamenty | Sprzątanie</h1>
               <p className="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
