@@ -119,9 +119,9 @@ function Index() {
               </p>
             </div>
             <div className="grid grid-cols-3 gap-2 md:min-w-80">
-              <Metric label="Priorytet | Do sprzątnięcia" value={stats.priorytet} icon={Clock3} />
-              <Metric label="Wolne | Do sprzątnięcia" value={stats.wolne} icon={CheckCircle2} />
-              <Metric label="Sprzątanie w toku" value={stats.active} icon={DoorOpen} />
+              <Metric label="Priorytet | Do sprzątnięcia" value={stats.priorytet} icon={Clock3} onClick={() => focusStatus("Priorytet | Do sprzątnięcia")} />
+              <Metric label="Wolne | Do sprzątnięcia" value={stats.wolne} icon={CheckCircle2} onClick={() => focusStatus("Wolne | Do sprzątnięcia")} />
+              <Metric label="Sprzątanie w toku" value={stats.active} icon={DoorOpen} onClick={() => focusStatus("Sprzątanie w toku")} />
             </div>
           </div>
 
