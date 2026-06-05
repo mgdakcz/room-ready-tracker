@@ -215,8 +215,9 @@ function Index() {
                 return (
                   <details
                     key={status}
+                    id={`status-${status}`}
                     open={defaultOpen}
-                    className="group rounded-md border bg-card shadow-sm"
+                    className="group rounded-md border bg-card shadow-sm scroll-mt-4"
                   >
                     <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground hover:bg-muted/40">
                       <ChevronRight className="h-4 w-4 transition-transform group-open:rotate-90" />
