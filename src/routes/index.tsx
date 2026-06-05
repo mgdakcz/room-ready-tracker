@@ -82,6 +82,7 @@ function Index() {
   const [cleanerName, setCleanerName] = useState("");
   const [ownerPin, setOwnerPin] = useState("");
   const [selectedFloor, setSelectedFloor] = useState("All");
+  const [search, setSearch] = useState("");
   const [error, setError] = useState("");
   const queryClient = useQueryClient();
 
@@ -91,9 +92,16 @@ function Index() {
   }, [rooms]);
 
   const visibleRooms = useMemo(() => {
-    if (selectedFloor === "All") return rooms;
-    return rooms.filter((room) => room.floor === selectedFloor);
-  }, [rooms, selectedFloor]);
+    const q = search.trim().toLowerCase();
+    return rooms.filter((room) => {
+      if (selectedFloor !== "All" && room.floor !== selectedFloor) return false;
+      if (!q) return true;
+      return (
+        (room.roomId ?? "").toLowerCase().includes(q) ||
+        (room.roomName ?? "").toLowerCase().includes(q)
+      );
+    });
+  }, [rooms, selectedFloor, search]);
 
   const stats = useMemo(
     () => ({
@@ -133,6 +141,13 @@ function Index() {
               <Metric label="Sprzątanie w toku" value={stats.active} icon={DoorOpen} onClick={() => focusStatus("Sprzątanie w toku")} />
             </div>
           </div>
+
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Szukaj apartamentu"
+            className="h-11"
+          />
 
           <div className="grid gap-3 rounded-md border bg-background p-3 md:grid-cols-2">
             <label className="grid gap-2 text-sm font-medium">
