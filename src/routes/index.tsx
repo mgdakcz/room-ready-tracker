@@ -121,7 +121,7 @@ function Index() {
     [rooms],
   );
 
-  const prevStatusesRef = useRef<Map<string, RoomStatus> | null>(null);
+  const prevStatusesRef = useRef<Map<string, string> | null>(null);
   useEffect(() => {
     const current = new Map<string, string>();
     rooms.forEach((r) => current.set(`${r.row}-${r.roomName}`, r.status));
