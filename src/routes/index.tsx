@@ -126,7 +126,7 @@ function Index() {
     const current = new Map<string, string>();
     rooms.forEach((r) => current.set(`${r.row}-${r.roomName}`, r.status));
     const prev = prevStatusesRef.current;
-    if (prev && ownerPin.trim()) {
+    if (prev) {
       let transitioned = false;
       current.forEach((status, key) => {
         const before = prev.get(key);
