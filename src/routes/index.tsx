@@ -25,7 +25,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -121,10 +121,50 @@ function Index() {
     [rooms],
   );
 
+  const prevStatusesRef = useRef<Map<string, string> | null>(null);
+  useEffect(() => {
+    const current = new Map<string, string>();
+    rooms.forEach((r) => current.set(`${r.row}-${r.roomName}`, r.status));
+    const prev = prevStatusesRef.current;
+    if (prev && ownerPin.trim()) {
+      let transitioned = false;
+      current.forEach((status, key) => {
+        const before = prev.get(key);
+        if (before === "Sprzątanie w toku" && status === "Gotowe") {
+          transitioned = true;
+        }
+      });
+      if (transitioned) {
+        try {
+          const AudioCtx =
+            window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+          const ctx = new AudioCtx();
+          const playTone = (freq: number, start: number, duration: number) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = "sine";
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0, ctx.currentTime + start);
+            gain.gain.linearRampToValueAtTime(0.25, ctx.currentTime + start + 0.02);
+            gain.gain.linearRampToValueAtTime(0, ctx.currentTime + start + duration);
+            osc.connect(gain).connect(ctx.destination);
+            osc.start(ctx.currentTime + start);
+            osc.stop(ctx.currentTime + start + duration + 0.05);
+          };
+          playTone(880, 0, 0.18);
+          playTone(1320, 0.18, 0.22);
+        } catch (e) {
+          console.warn("Ping sound failed:", e);
+        }
+      }
+    }
+    prevStatusesRef.current = current;
+  }, [rooms, ownerPin]);
+
   const focusStatus = (status: RoomStatus) => {
     const id = `status-${status}`;
     if (typeof document === "undefined") return;
-    const el = document.getElementById(id) as HTMLDetailsElement | null;
+    const el = document.getElementById(`status-${status}`) as HTMLDetailsElement | null;
     if (!el) return;
     el.open = true;
     el.scrollIntoView({ behavior: "smooth", block: "start" });
