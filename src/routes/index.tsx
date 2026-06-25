@@ -123,7 +123,7 @@ function Index() {
 
   const prevStatusesRef = useRef<Map<string, RoomStatus> | null>(null);
   useEffect(() => {
-    const current = new Map<string, RoomStatus>();
+    const current = new Map<string, string>();
     rooms.forEach((r) => current.set(`${r.row}-${r.roomName}`, r.status));
     const prev = prevStatusesRef.current;
     if (prev && ownerPin.trim()) {
