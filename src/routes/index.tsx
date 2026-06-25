@@ -164,7 +164,7 @@ function Index() {
   const focusStatus = (status: RoomStatus) => {
     const id = `status-${status}`;
     if (typeof document === "undefined") return;
-    const el = document.getElementById(id) as HTMLDetailsElement | null;
+    const el = document.getElementById(`status-${status}`) as HTMLDetailsElement | null;
     if (!el) return;
     el.open = true;
     el.scrollIntoView({ behavior: "smooth", block: "start" });
