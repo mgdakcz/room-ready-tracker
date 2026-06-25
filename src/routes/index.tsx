@@ -234,6 +234,16 @@ function Index() {
                     </div>
                   </DialogContent>
                 </Dialog>
+                <button
+                  type="button"
+                  onClick={() => playChime()}
+                  aria-label="Test dźwięku"
+                  title="Test dźwięku"
+                  className="inline-flex items-center gap-2 rounded-md border border-baltic-200 bg-background px-3 py-1 text-sm text-muted-foreground transition-colors hover:bg-baltic-100 hover:text-baltic-800"
+                >
+                  🔔
+                </button>
+
               </div>
               <h1 className="text-3xl tracking-tight text-baltic-800 md:text-5xl font-bold text-slate-700">Apartamenty | Sprzątanie</h1>
               <p className="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
