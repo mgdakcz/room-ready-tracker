@@ -54,6 +54,32 @@ import {
 } from "@/lib/sheets.functions";
 import { cn } from "@/lib/utils";
 
+function playChime() {
+  if (typeof window === "undefined") return;
+  try {
+    const AudioCtx =
+      window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new AudioCtx();
+    const playTone = (freq: number, start: number, duration: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, ctx.currentTime + start);
+      gain.gain.linearRampToValueAtTime(0.25, ctx.currentTime + start + 0.02);
+      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + start + duration);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(ctx.currentTime + start);
+      osc.stop(ctx.currentTime + start + duration + 0.05);
+    };
+    playTone(880, 0, 0.18);
+    playTone(1320, 0.18, 0.22);
+  } catch (e) {
+    console.warn("Ping sound failed:", e);
+  }
+}
+
+
 const roomsQueryOptions = queryOptions({
   queryKey: ["rooms"],
   queryFn: () => getRooms(),
@@ -135,28 +161,9 @@ function Index() {
         }
       });
       if (transitioned) {
-        try {
-          const AudioCtx =
-            window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-          const ctx = new AudioCtx();
-          const playTone = (freq: number, start: number, duration: number) => {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.type = "sine";
-            osc.frequency.value = freq;
-            gain.gain.setValueAtTime(0, ctx.currentTime + start);
-            gain.gain.linearRampToValueAtTime(0.25, ctx.currentTime + start + 0.02);
-            gain.gain.linearRampToValueAtTime(0, ctx.currentTime + start + duration);
-            osc.connect(gain).connect(ctx.destination);
-            osc.start(ctx.currentTime + start);
-            osc.stop(ctx.currentTime + start + duration + 0.05);
-          };
-          playTone(880, 0, 0.18);
-          playTone(1320, 0.18, 0.22);
-        } catch (e) {
-          console.warn("Ping sound failed:", e);
-        }
+        playChime();
       }
+
     }
     prevStatusesRef.current = current;
   }, [rooms]);
@@ -227,6 +234,16 @@ function Index() {
                     </div>
                   </DialogContent>
                 </Dialog>
+                <button
+                  type="button"
+                  onClick={() => playChime()}
+                  aria-label="Test dźwięku"
+                  title="Test dźwięku"
+                  className="inline-flex items-center gap-2 rounded-md border border-baltic-200 bg-background px-3 py-1 text-sm text-muted-foreground transition-colors hover:bg-baltic-100 hover:text-baltic-800"
+                >
+                  🔔
+                </button>
+
               </div>
               <h1 className="text-3xl tracking-tight text-baltic-800 md:text-5xl font-bold text-slate-700">Apartamenty | Sprzątanie</h1>
               <p className="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
