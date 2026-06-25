@@ -159,7 +159,7 @@ function Index() {
       }
     }
     prevStatusesRef.current = current;
-  }, [rooms, ownerPin]);
+  }, [rooms]);
 
   const focusStatus = (status: RoomStatus) => {
     const id = `status-${status}`;
