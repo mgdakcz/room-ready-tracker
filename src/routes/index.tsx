@@ -557,7 +557,28 @@ function RoomCard({
             <SelectContent>
               {STATUSES.map((s) => (
                 <SelectItem key={s} value={s}>
-                  {s}
+                  <span className="inline-flex items-center gap-2">
+                    <span
+                      className={cn("h-2 w-2 rounded-full", {
+                        "bg-red-600": s === "Priorytet | Do sprzątnięcia",
+                        "bg-orange-500": s === "Wolne | Do sprzątnięcia",
+                        "bg-green-600": s === "Gotowe",
+                        "bg-black": s === "Zajęte",
+                        "bg-primary": s === "Sprzątanie w toku",
+                      })}
+                    />
+                    <span
+                      className={cn({
+                        "text-red-700": s === "Priorytet | Do sprzątnięcia",
+                        "text-orange-700": s === "Wolne | Do sprzątnięcia",
+                        "text-green-700": s === "Gotowe",
+                        "text-black": s === "Zajęte",
+                        "text-primary": s === "Sprzątanie w toku",
+                      })}
+                    >
+                      {s}
+                    </span>
+                  </span>
                 </SelectItem>
               ))}
             </SelectContent>
