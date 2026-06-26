@@ -780,7 +780,7 @@ function ImportantPanel({
         </form>
       </article>
 
-      <article className="flex flex-col rounded-md border bg-card p-4 shadow-sm">
+      <article className="order-1 flex flex-col rounded-md border bg-card p-4 shadow-sm lg:order-none">
         <header className="mb-3 flex items-center justify-between gap-2">
           <h2 className="text-xl font-semibold tracking-tight">​Ważne na jutro</h2>
           <Pencil className="h-4 w-4 text-muted-foreground" />
