@@ -54,12 +54,39 @@ import {
 } from "@/lib/sheets.functions";
 import { cn } from "@/lib/utils";
 
+let sharedAudioCtx: AudioContext | null = null;
+let chimeUnlockInstalled = false;
+
+function getAudioCtx(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  const AudioCtx =
+    window.AudioContext ||
+    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AudioCtx) return null;
+  if (!sharedAudioCtx) sharedAudioCtx = new AudioCtx();
+  return sharedAudioCtx;
+}
+
+function installChimeUnlock() {
+  if (chimeUnlockInstalled || typeof window === "undefined") return;
+  chimeUnlockInstalled = true;
+  const unlock = () => {
+    const ctx = getAudioCtx();
+    if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
+  };
+  ["pointerdown", "touchstart", "keydown", "click"].forEach((evt) =>
+    window.addEventListener(evt, unlock, { once: false, passive: true }),
+  );
+}
+
 function playChime() {
   if (typeof window === "undefined") return;
   try {
-    const AudioCtx =
-      window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    const ctx = new AudioCtx();
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    if (ctx.state === "suspended") {
+      ctx.resume().catch(() => {});
+    }
     const playTone = (freq: number, start: number, duration: number) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
