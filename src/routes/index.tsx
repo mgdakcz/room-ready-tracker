@@ -174,6 +174,10 @@ function Index() {
     [rooms],
   );
 
+  useEffect(() => {
+    installChimeUnlock();
+  }, []);
+
   const prevStatusesRef = useRef<Map<string, string> | null>(null);
   useEffect(() => {
     const current = new Map<string, string>();
