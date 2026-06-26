@@ -389,8 +389,8 @@ function Index() {
                       <span
                         className={cn("inline-block h-2 w-2 rounded-full", {
                           "bg-red-600": status === "Priorytet | Do sprzątnięcia",
-                          "bg-primary": status === "Sprzątanie w toku",
-                          "bg-orange-500": status === "Wolne | Do sprzątnięcia",
+                          "bg-yellow-500": status === "Sprzątanie w toku",
+                          "bg-blue-500": status === "Wolne | Do sprzątnięcia",
                           "bg-green-500": status === "Gotowe",
                           "bg-black": status === "Zajęte",
                         })}
