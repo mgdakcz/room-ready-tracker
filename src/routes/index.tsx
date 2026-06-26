@@ -388,10 +388,11 @@ function Index() {
                       <ChevronRight className="h-4 w-4 transition-transform group-open:rotate-90" />
                       <span
                         className={cn("inline-block h-2 w-2 rounded-full", {
-                          "bg-destructive": status === "Priorytet | Do sprzątnięcia",
+                          "bg-red-600": status === "Priorytet | Do sprzątnięcia",
                           "bg-primary": status === "Sprzątanie w toku",
-                          "bg-muted-foreground": status === "Wolne | Do sprzątnięcia",
+                          "bg-orange-500": status === "Wolne | Do sprzątnięcia",
                           "bg-green-500": status === "Gotowe",
+                          "bg-black": status === "Zajęte",
                         })}
                       />
                       {status}
