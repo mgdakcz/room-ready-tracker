@@ -388,10 +388,11 @@ function Index() {
                       <ChevronRight className="h-4 w-4 transition-transform group-open:rotate-90" />
                       <span
                         className={cn("inline-block h-2 w-2 rounded-full", {
-                          "bg-destructive": status === "Priorytet | Do sprzątnięcia",
+                          "bg-red-600": status === "Priorytet | Do sprzątnięcia",
                           "bg-primary": status === "Sprzątanie w toku",
-                          "bg-muted-foreground": status === "Wolne | Do sprzątnięcia",
+                          "bg-orange-500": status === "Wolne | Do sprzątnięcia",
                           "bg-green-500": status === "Gotowe",
+                          "bg-black": status === "Zajęte",
                         })}
                       />
                       {status}
@@ -685,7 +686,8 @@ function ImportantPanel({
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <article className="flex flex-col rounded-md border bg-card p-4 shadow-sm">
+      <article className="order-2 flex flex-col rounded-md border bg-card p-4 shadow-sm lg:order-none">
+
         <header className="mb-3 flex items-center justify-between gap-2">
           <h2 className="text-xl font-semibold tracking-tight">​Lista Zadań</h2>
           <span className="text-xs text-muted-foreground">
@@ -778,7 +780,7 @@ function ImportantPanel({
         </form>
       </article>
 
-      <article className="flex flex-col rounded-md border bg-card p-4 shadow-sm">
+      <article className="order-1 flex flex-col rounded-md border bg-card p-4 shadow-sm lg:order-none">
         <header className="mb-3 flex items-center justify-between gap-2">
           <h2 className="text-xl font-semibold tracking-tight">​Ważne na jutro</h2>
           <Pencil className="h-4 w-4 text-muted-foreground" />
@@ -861,11 +863,14 @@ function Info({ label, value }: { label: string; value: string }) {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const variant = status === "Gotowe" ? "default" : status === "Sprzątanie w toku" ? "secondary" : "outline";
   return (
     <Badge
-      variant={variant}
+      variant="outline"
       className={cn("max-w-36 justify-center whitespace-normal text-center leading-tight border-2 font-sans", {
+        "border-red-600 bg-red-50 text-red-700": status === "Priorytet | Do sprzątnięcia",
+        "border-orange-500 bg-orange-50 text-orange-700": status === "Wolne | Do sprzątnięcia",
+        "border-green-600 bg-green-50 text-green-700": status === "Gotowe",
+        "border-black bg-neutral-100 text-black": status === "Zajęte",
         "border-primary/50 bg-primary/10 text-primary": status === "Sprzątanie w toku",
       })}
     >
