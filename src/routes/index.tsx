@@ -582,4 +582,318 @@ function RoomCard({
         ) : null}
         <Button
           type="button"
-          variant
+          variant="ghost"
+          onClick={() => setShowNotes((s) => !s)}
+          className="h-10 px-2"
+        >
+          <Pencil className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {showNotes ? (
+        <form onSubmit={saveNotes} className="w-full border-t pt-3 sm:col-span-full">
+          <Textarea
+            id={`notes-${room.row}`}
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+            className="min-h-16 resize-none"
+            placeholder="Dodaj notatki do pokoju"
+          />
+          <div className="mt-2 flex justify-end">
+            <Button type="submit" variant="outline" disabled={isBusy || notes === room.notes} className="h-9">
+              {notesMutation.isPending ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />}
+              Zapisz notatki
+            </Button>
+          </div>
+        </form>
+      ) : null}
+    </article>
+  );
+}
+
+function ImportantPanel({
+  cleanerName,
+  ownerPin,
+  setError,
+}: {
+  cleanerName: string;
+  ownerPin: string;
+  setError: (message: string) => void;
+}) {
+  const queryClient = useQueryClient();
+  const { data, error: loadError, isLoading } = useQuery(importantQueryOptions);
+  const tasks: ChecklistItem[] = data?.tasks ?? [];
+  const comments: Comment[] = data?.comments ?? [];
+
+  const [newTask, setNewTask] = useState("");
+  const [newComment, setNewComment] = useState("");
+
+  const runAdd = useServerFn(addChecklistItem);
+  const runToggle = useServerFn(toggleChecklistItem);
+  const runDelete = useServerFn(deleteChecklistItem);
+  const runAddComment = useServerFn(addComment);
+  const runDeleteComment = useServerFn(deleteComment);
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["important"] });
+  const onError = (err: Error) => setError(err.message);
+
+  const addMutation = useMutation({
+    mutationFn: () => runAdd({ data: { task: newTask.trim(), pin: ownerPin } }),
+    onMutate: () => setError(""),
+    onSuccess: () => {
+      setNewTask("");
+      invalidate();
+    },
+    onError,
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: (vars: { row: number; done: boolean }) =>
+      runToggle({
+        data: { row: vars.row, done: vars.done, cleanerName: cleanerName.trim() || undefined },
+      }),
+    onMutate: () => setError(""),
+    onSuccess: invalidate,
+    onError,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (row: number) => runDelete({ data: { row, pin: ownerPin } }),
+    onMutate: () => setError(""),
+    onSuccess: invalidate,
+    onError,
+  });
+
+  const addCommentMutation = useMutation({
+    mutationFn: () => runAddComment({ data: { text: newComment.trim(), pin: ownerPin } }),
+    onMutate: () => setError(""),
+    onSuccess: () => {
+      setNewComment("");
+      invalidate();
+    },
+    onError,
+  });
+
+  const deleteCommentMutation = useMutation({
+    mutationFn: (row: number) => runDeleteComment({ data: { row, pin: ownerPin } }),
+    onMutate: () => setError(""),
+    onSuccess: () => {
+      setNewComment("");
+      invalidate();
+    },
+    onError,
+  });
+
+  function handleAdd(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!newTask.trim()) return;
+    addMutation.mutate();
+  }
+
+  function handleAddComment(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!newComment.trim()) return;
+    addCommentMutation.mutate();
+  }
+
+  function handleToggle(item: ChecklistItem, next: boolean) {
+    if (next && !cleanerName.trim()) {
+      setError("Enter your name above before checking off a task.");
+      return;
+    }
+    toggleMutation.mutate({ row: item.row, done: next });
+  }
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <article className="flex flex-col rounded-md border bg-card p-4 shadow-sm">
+        <header className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="text-xl font-semibold tracking-tight">Ważne na jutro</h2>
+          <Pencil className="h-4 w-4 text-muted-foreground" />
+        </header>
+
+        <ul className="flex-1 space-y-2">
+          {isLoading && comments.length === 0 ? (
+            <li className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+            </li>
+          ) : null}
+          {!isLoading && comments.length === 0 ? (
+            <li className="rounded-md border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
+              Brak komentarzy. Owner może dodać poniżej.
+            </li>
+          ) : null}
+          {comments.map((item) => (
+            <li
+              key={item.row}
+              className="flex items-start gap-3 rounded-md border bg-background px-3 py-2"
+            >
+              <div className="flex-1 text-sm">
+                <p className="whitespace-pre-wrap font-medium">{item.text}</p>
+                {item.createdAt ? (
+                  <p className="mt-0.5 text-xs text-muted-foreground">{item.createdAt}</p>
+                ) : null}
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => deleteCommentMutation.mutate(item.row)}
+                disabled={!ownerPin || deleteCommentMutation.isPending}
+                title={ownerPin ? "Delete (owner)" : "Owner PIN required"}
+                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </li>
+          ))}
+        </ul>
+
+        <form onSubmit={handleAddComment} className="mt-4 grid gap-2 border-t pt-4">
+          <label className="text-sm font-medium" htmlFor="new-comment">
+            Dodaj komentarz (owner)
+          </label>
+          <div className="flex gap-2">
+            <Textarea
+              id="new-comment"
+              value={newComment}
+              onChange={(event) => setNewComment(event.target.value)}
+              placeholder="Informacja ważna na jutro…"
+              className="min-h-[80px] flex-1 resize-none"
+            />
+            <Button
+              type="submit"
+              disabled={!newComment.trim() || !ownerPin || addCommentMutation.isPending}
+              className="h-11 self-end"
+            >
+              {addCommentMutation.isPending ? <Loader2 className="animate-spin" /> : <Plus />}
+              Dodaj
+            </Button>
+          </div>
+          {!ownerPin ? (
+            <p className="text-xs text-muted-foreground">Wpisz PIN żeby dodać komentarz.</p>
+          ) : null}
+        </form>
+      </article>
+
+      <article className="flex flex-col rounded-md border bg-card p-4 shadow-sm">
+        <header className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="text-xl font-semibold tracking-tight">Lista Zadań</h2>
+          <span className="text-xs text-muted-foreground">
+            {tasks.filter((t) => t.done).length} / {tasks.length} done
+          </span>
+        </header>
+
+        {loadError ? (
+          <div className="mb-3 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {loadError instanceof Error ? loadError.message : String(loadError)}
+          </div>
+        ) : null}
+
+        <ul className="flex-1 space-y-2">
+          {isLoading && tasks.length === 0 ? (
+            <li className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+            </li>
+          ) : null}
+          {!isLoading && tasks.length === 0 ? (
+            <li className="rounded-md border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
+              Brak nowych zadań. Owner może dodać zadania po wpisaniu kodu PIN.
+            </li>
+          ) : null}
+          {tasks.map((item) => (
+            <li
+              key={item.row}
+              className="flex items-start gap-3 rounded-md border bg-background px-3 py-2"
+            >
+              <Checkbox
+                id={`task-${item.row}`}
+                checked={item.done}
+                onCheckedChange={(checked) => handleToggle(item, checked === true)}
+                disabled={toggleMutation.isPending}
+                className="mt-1"
+              />
+              <label
+                htmlFor={`task-${item.row}`}
+                className={cn(
+                  "flex-1 cursor-pointer text-sm",
+                  item.done && "text-muted-foreground line-through",
+                )}
+              >
+                <span className="block font-medium">{item.task}</span>
+                {item.done && item.doneBy ? (
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    ✓ {item.doneBy}
+                    {item.doneAt ? ` · ${item.doneAt}` : ""}
+                  </span>
+                ) : null}
+              </label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => deleteMutation.mutate(item.row)}
+                disabled={!ownerPin || deleteMutation.isPending}
+                title={ownerPin ? "Delete (owner)" : "Owner PIN required"}
+                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </li>
+          ))}
+        </ul>
+
+        <form onSubmit={handleAdd} className="mt-4 grid gap-2 border-t pt-4">
+          <label className="text-sm font-medium" htmlFor="new-task">
+            Dodaj zadanie (owner)
+          </label>
+          <div className="flex gap-2">
+            <Input
+              id="new-task"
+              value={newTask}
+              onChange={(event) => setNewTask(event.target.value)}
+              placeholder="Dodaj dostawkę w apartamencie nr 2"
+            />
+            <Button
+              type="submit"
+              disabled={!newTask.trim() || !ownerPin || addMutation.isPending}
+              className="h-11"
+            >
+              {addMutation.isPending ? <Loader2 className="animate-spin" /> : <Plus />}
+              Dodaj
+            </Button>
+          </div>
+          {!ownerPin ? (
+            <p className="text-xs text-muted-foreground">Wpisz PIN żeby dodać zadanie.</p>
+          ) : null}
+        </form>
+      </article>
+    </div>
+  );
+}
+
+function Info({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md bg-muted px-3 py-2">
+      <div className="text-xs font-medium text-muted-foreground">{label}</div>
+      <div className="mt-1 min-h-5 truncate text-sm font-medium">{value}</div>
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  return (
+    <Badge
+      variant="outline"
+      className={cn("max-w-36 justify-center whitespace-normal text-center leading-tight border-2 font-sans", {
+        "border-red-600 bg-red-50 text-red-700": status === "Priorytet | Do sprzątnięcia",
+        "border-orange-500 bg-orange-50 text-orange-700": status === "Wolne | Do sprzątnięcia",
+        "border-green-600 bg-green-50 text-green-700": status === "Gotowe",
+        "border-black bg-neutral-100 text-black": status === "Zajęte",
+        "border-primary/50 bg-primary/10 text-primary": status === "Sprzątanie w toku",
+      })}
+    >
+      {status || "No status"}
+    </Badge>
+  );
+}
