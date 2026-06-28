@@ -219,7 +219,7 @@ function Index() {
                   <DialogTrigger asChild>
                     <button
                       type="button"
-                      aria-label="Instrukcja / Instrukcija"
+                      aria-label="Instrukcja / Інструкція"
                       className="inline-flex items-center gap-2 rounded-md border border-baltic-200 bg-background px-3 py-1 text-sm text-muted-foreground transition-colors hover:bg-baltic-100 hover:text-baltic-800"
                     >
                       <HelpCircle className="h-4 w-4 text-baltic-500" />
@@ -227,16 +227,36 @@ function Index() {
                   </DialogTrigger>
                   <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
                     <DialogHeader>
-                      <DialogTitle>Instrukcja obslugi / Instrukcija</DialogTitle>
+                      <DialogTitle>Instrukcja obsługi / Інструкція користування</DialogTitle>
                       <DialogDescription>
-                        Dashboard info.
+                        Jak korzystać z aplikacji do sprzątania apartamentów. / Як користуватися застосунком для прибирання апартаментів.
                       </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-6 md:grid-cols-2">
                       <section className="space-y-3 text-sm text-slate-700">
-                        <h3 className="text-base font-semibold text-baltic-800">PL</h3>
+                        <h3 className="text-base font-semibold text-baltic-800">🇵🇱 Polski</h3>
                         <ol className="list-decimal space-y-2 pl-5">
-                          <li>Wpisz imiona osób sprzatajacych.</li>
+                          <li>Wpisz imiona osób sprzątających apartament w polu <strong>Sprzątający</strong>.</li>
+                          <li>Użyj wyszukiwarki <strong>Szukaj apartamentu</strong> lub wybierz apartament z listy <strong>Wolne | do sprzątnięcia</strong> lub <strong>Priorytet | do sprzątnięcia</strong>.</li>
+                          <li>Naciśnij ikonę <strong>Rozpocznij sprzątanie</strong>, gdy zaczynasz pracę w apartamencie.</li>
+                          <li>Po zakończeniu kliknij ikonę <strong>Zakończ sprzątanie</strong>.</li>
+                          <li>Dodawaj <strong>Komentarze</strong> jeśli coś w apartamencie wymaga uwagi.</li>
+                          <li>W zakładce <strong>Ważne</strong> znajdziesz ważne informacje na kolejny dzień oraz aktualną listę zadań (dostawki, psy itd.).</li>
+                          <li>Jeśli pole <strong>Ważne</strong> jest czerwone, koniecznie przejdź do zakładki <strong>Ważne</strong>.</li>
+                          <li>Odznaczaj zadania na liście zadań, żeby dać znać innym co zostało zrobione.</li>
+                        </ol>
+                      </section>
+                      <section className="space-y-3 text-sm text-slate-700">
+                        <h3 className="text-base font-semibold text-baltic-800">🇺🇦 Українська</h3>
+                        <ol className="list-decimal space-y-2 pl-5">
+                          <li>Введіть імена осіб, які прибирають апартамент, у полі <strong>Sprzątający</strong> (Прибиральники).</li>
+                          <li>Скористайтеся пошуком <strong>Szukaj apartamentu</strong> (Пошук апартаменту) або оберіть апартамент зі списку <strong>Wolne | do sprzątnięcia</strong> (Вільні | до прибирання) чи <strong>Priorytet | do sprzątnięcia</strong> (Пріоритет | до прибирання).</li>
+                          <li>Натисніть іконку <strong>Rozpocznij sprzątanie</strong> (Почати прибирання), коли починаєте роботу в апартаменті.</li>
+                          <li>Після завершення натисніть іконку <strong>Zakończ sprzątanie</strong> (Завершити прибирання).</li>
+                          <li>Додавайте <strong>Komentarze</strong> (Коментарі), якщо щось в апартаменті потребує уваги.</li>
+                          <li>У вкладці <strong>Ważne</strong> (Важливе) знайдете важливу інформацію на наступний день та актуальний список завдань (додаткові ліжка, собаки тощо).</li>
+                          <li>Якщо поле <strong>Ważne</strong> (Важливе) червоне, обов'язково перейдіть до вкладки <strong>Ważne</strong>.</li>
+                          <li>Відмічайте виконані пункти у списку завдань, щоб повідомити інших, що вже зролено.</li>
                         </ol>
                       </section>
                     </div>
@@ -245,13 +265,17 @@ function Index() {
                 <button
                   type="button"
                   onClick={() => playChime()}
-                  aria-label="Test"
+                  aria-label="Test dźwięku"
+                  title="Test dźwięku"
                   className="inline-flex items-center gap-2 rounded-md border border-baltic-200 bg-background px-3 py-1 text-sm text-muted-foreground transition-colors hover:bg-baltic-100 hover:text-baltic-800"
                 >
                   🔔
                 </button>
               </div>
               <h1 className="text-3xl tracking-tight text-baltic-800 md:text-5xl font-bold text-slate-700">Apartamenty | Sprzątanie</h1>
+              <p className="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
+                {"\u200b"}
+              </p>
             </div>
             <div className="grid grid-cols-3 gap-2 md:min-w-80">
               <Metric label="Priorytet | Do sprzątnięcia" value={stats.priorytet} icon={Clock3} onClick={() => focusStatus("Priorytet | Do sprzątnięcia")} />
@@ -272,7 +296,7 @@ function Index() {
               <Input
                 value={cleanerName}
                 onChange={(event) => setCleanerName(event.target.value)}
-                placeholder="Osoby sprzątające"
+                placeholder="Osoby sprzątające apartament"
               />
             </label>
             <label className="grid gap-2 text-sm font-medium">
@@ -281,14 +305,19 @@ function Index() {
                 value={ownerPin}
                 onChange={(event) => setOwnerPin(event.target.value)}
                 type="password"
-                placeholder="Wymagany PIN"
+                placeholder="Wymagany dla dodatkowych opcji"
               />
             </label>
           </div>
 
           {loadError ? (
             <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-              Failed to load rooms
+              Failed to load rooms: {loadError instanceof Error ? loadError.message : String(loadError)}
+            </div>
+          ) : null}
+          {error ? (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {error}
             </div>
           ) : null}
         </div>
@@ -329,7 +358,7 @@ function Index() {
             <div className="flex flex-col gap-6">
               {isLoading && rooms.length === 0 ? (
                 <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading rooms...
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading rooms…
                 </div>
               ) : null}
               {([
@@ -349,4 +378,208 @@ function Index() {
                     key={status}
                     id={`status-${status}`}
                     open={defaultOpen}
-                    className="group rounded-md border bg-
+                    className="group rounded-md border bg-card shadow-sm scroll-mt-4"
+                  >
+                    <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground hover:bg-muted/40">
+                      <ChevronRight className="h-4 w-4 transition-transform group-open:rotate-90" />
+                      <span
+                        className={cn("inline-block h-2 w-2 rounded-full", {
+                          "bg-red-600": status === "Priorytet | Do sprzątnięcia",
+                          "bg-orange-500": status === "Wolne | Do sprzątnięcia",
+                          "bg-primary": status === "Sprzątanie w toku",
+                          "bg-black": status === "Zajęte",
+                          "bg-green-600": status === "Gotowe",
+                        })}
+                      />
+                      {status}
+                      <span className="ml-1 text-xs font-normal text-muted-foreground">
+                        ({group.length})
+                      </span>
+                    </summary>
+                    <div className="flex flex-col gap-3 border-t p-3">
+                      {group.map((room) => (
+                        <RoomCard
+                          key={`${room.row}-${room.roomName}`}
+                          room={room}
+                          cleanerName={cleanerName}
+                          ownerPin={ownerPin}
+                          setError={setError}
+                          onChanged={() => queryClient.invalidateQueries({ queryKey: ["rooms"] })}
+                        />
+                      ))}
+                    </div>
+                  </details>
+                );
+              })}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="important">
+            <ImportantPanel
+              cleanerName={cleanerName}
+              ownerPin={ownerPin}
+              setError={setError}
+            />
+          </TabsContent>
+        </Tabs>
+      </section>
+    </main>
+  );
+}
+
+function Metric({
+  label,
+  value,
+  icon: Icon,
+  onClick,
+}: {
+  label: string;
+  value: number;
+  icon: typeof CheckCircle2;
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded-md border border-baltic-200 bg-background p-3 text-left transition-colors hover:bg-baltic-50 focus:outline-none focus:ring-2 focus:ring-baltic-500"
+    >
+      <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground text-slate-700">
+        <Icon className="h-4 w-4 text-baltic-500" />
+        {label}
+      </div>
+      <div className="mt-2 text-2xl font-semibold tabular-nums text-baltic-800">{value}</div>
+    </button>
+  );
+}
+
+function RoomCard({
+  room,
+  cleanerName,
+  ownerPin,
+  setError,
+  onChanged,
+}: {
+  room: Room;
+  cleanerName: string;
+  ownerPin: string;
+  setError: (message: string) => void;
+  onChanged: () => void;
+}) {
+  const [notes, setNotes] = useState(room.notes);
+  const [showNotes, setShowNotes] = useState(false);
+  const runClockIn = useServerFn(clockIn);
+  const runClockOut = useServerFn(clockOut);
+  const runSetStatus = useServerFn(setRoomStatus);
+  const runSetNotes = useServerFn(setRoomNotes);
+
+  const mutationOptions = {
+    onMutate: () => setError(""),
+    onSuccess: onChanged,
+    onError: (err: Error) => setError(err.message),
+  };
+
+  const clockInMutation = useMutation({
+    mutationFn: () => runClockIn({ data: { row: room.row, cleanerName: cleanerName.trim() } }),
+    ...mutationOptions,
+  });
+  const clockOutMutation = useMutation({
+    mutationFn: () => runClockOut({ data: { row: room.row } }),
+    ...mutationOptions,
+  });
+  const statusMutation = useMutation({
+    mutationFn: (status: RoomStatus) => runSetStatus({ data: { row: room.row, status, pin: ownerPin } }),
+    ...mutationOptions,
+  });
+  const notesMutation = useMutation({
+    mutationFn: () => runSetNotes({ data: { row: room.row, notes } }),
+    ...mutationOptions,
+  });
+
+  const isBusy =
+    clockInMutation.isPending ||
+    clockOutMutation.isPending ||
+    statusMutation.isPending ||
+    notesMutation.isPending;
+  const canStart = cleanerName.trim().length > 0 && !isBusy;
+  const isActive = room.status === "Sprzątanie w toku";
+
+  function saveNotes(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    notesMutation.mutate();
+  }
+
+  return (
+    <article className="flex flex-col gap-3 rounded-md border bg-card p-4 shadow-sm sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-1 flex-col gap-2">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-xl font-bold text-foreground">
+            <BedDouble className="h-5 w-5" />
+            {room.roomId || `Row ${room.row}`}
+          </div>
+          <StatusBadge status={room.status} />
+        </div>
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+          <span>Sprzątający: <span className="font-medium text-foreground">{room.cleanerName || "—"}</span></span>
+          <span>Aktualizacja: <span className="font-medium text-foreground">{room.timeStamp || "—"}</span></span>
+          <span>Start: <span className="font-medium text-foreground">{room.startTime || "—"}</span></span>
+          <span>Suma: <span className="font-medium text-foreground">{room.totalTime || "—"}</span></span>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 sm:w-auto sm:flex-nowrap">
+        {isActive ? (
+          <Button type="button" onClick={() => clockOutMutation.mutate()} disabled={isBusy} className="h-10">
+            {clockOutMutation.isPending ? <Loader2 className="animate-spin" /> : <LogOut className="h-4 w-4" />}
+            <span className="hidden sm:inline">Finish</span>
+          </Button>
+        ) : (
+          <Button type="button" onClick={() => clockInMutation.mutate()} disabled={!canStart} className="h-10">
+            {clockInMutation.isPending ? <Loader2 className="animate-spin" /> : <Play className="h-4 w-4" />}
+            <span className="hidden sm:inline">Start</span>
+          </Button>
+        )}
+        {ownerPin ? (
+          <Select
+            value={room.status}
+            onValueChange={(value) => {
+              if (value !== room.status) statusMutation.mutate(value as RoomStatus);
+            }}
+            disabled={isBusy}
+          >
+            <SelectTrigger className="h-10 w-[220px]">
+              <SelectValue placeholder="Zmień status" />
+            </SelectTrigger>
+            <SelectContent>
+              {STATUSES.map((s) => (
+                <SelectItem key={s} value={s}>
+                  <span className="inline-flex items-center gap-2">
+                    <span
+                      className={cn("h-2 w-2 rounded-full", {
+                        "bg-red-600": s === "Priorytet | Do sprzątnięcia",
+                        "bg-orange-500": s === "Wolne | Do sprzątnięcia",
+                        "bg-primary": s === "Sprzątanie w toku",
+                        "bg-black": s === "Zajęte",
+                        "bg-green-600": s === "Gotowe",
+                      })}
+                    />
+                    <span
+                      className={cn({
+                        "text-red-700": s === "Priorytet | Do sprzątnięcia",
+                        "text-orange-700": s === "Wolne | Do sprzątnięcia",
+                        "text-primary": s === "Sprzątanie w toku",
+                        "text-black": s === "Zajęte",
+                        "text-green-700": s === "Gotowe",
+                      })}
+                    >
+                      {s}
+                    </span>
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : null}
+        <Button
+          type="button"
+          variant
