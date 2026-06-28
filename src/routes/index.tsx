@@ -106,7 +106,6 @@ function playChime() {
   }
 }
 
-
 const roomsQueryOptions = queryOptions({
   queryKey: ["rooms"],
   queryFn: () => getRooms(),
@@ -187,20 +186,19 @@ function Index() {
       let transitioned = false;
       current.forEach((status, key) => {
         const before = prev.get(key);
-        if (before === "Sprzątanie w toku" && status === "Gotowe") {
+        // Se activa si cambia desde cualquier estado previo (como 'Sprzątanie w toku') a 'Gotowe'
+        if (before && before !== "Gotowe" && status === "Gotowe") {
           transitioned = true;
         }
       });
       if (transitioned) {
         playChime();
       }
-
     }
     prevStatusesRef.current = current;
   }, [rooms]);
 
   const focusStatus = (status: RoomStatus) => {
-    const id = `status-${status}`;
     if (typeof document === "undefined") return;
     const el = document.getElementById(`status-${status}`) as HTMLDetailsElement | null;
     if (!el) return;
@@ -274,7 +272,6 @@ function Index() {
                 >
                   🔔
                 </button>
-
               </div>
               <h1 className="text-3xl tracking-tight text-baltic-800 md:text-5xl font-bold text-slate-700">Apartamenty | Sprzątanie</h1>
               <p className="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
@@ -389,10 +386,10 @@ function Index() {
                       <span
                         className={cn("inline-block h-2 w-2 rounded-full", {
                           "bg-red-600": status === "Priorytet | Do sprzątnięcia",
-                          "bg-yellow-500": status === "Sprzątanie w toku",
-                          "bg-blue-500": status === "Wolne | Do sprzątnięcia",
-                          "bg-green-500": status === "Gotowe",
+                          "bg-orange-500": status === "Wolne | Do sprzątnięcia",
+                          "bg-primary": status === "Sprzątanie w toku",
                           "bg-black": status === "Zajęte",
+                          "bg-green-600": status === "Gotowe",
                         })}
                       />
                       {status}
@@ -562,18 +559,18 @@ function RoomCard({
                       className={cn("h-2 w-2 rounded-full", {
                         "bg-red-600": s === "Priorytet | Do sprzątnięcia",
                         "bg-orange-500": s === "Wolne | Do sprzątnięcia",
-                        "bg-green-600": s === "Gotowe",
-                        "bg-black": s === "Zajęte",
                         "bg-primary": s === "Sprzątanie w toku",
+                        "bg-black": s === "Zajęte",
+                        "bg-green-600": s === "Gotowe",
                       })}
                     />
                     <span
                       className={cn({
                         "text-red-700": s === "Priorytet | Do sprzątnięcia",
                         "text-orange-700": s === "Wolne | Do sprzątnięcia",
-                        "text-green-700": s === "Gotowe",
-                        "text-black": s === "Zajęte",
                         "text-primary": s === "Sprzątanie w toku",
+                        "text-black": s === "Zajęte",
+                        "text-green-700": s === "Gotowe",
                       })}
                     >
                       {s}
@@ -707,10 +704,81 @@ function ImportantPanel({
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <article className="order-2 flex flex-col rounded-md border bg-card p-4 shadow-sm lg:order-none">
-
+      {/* Sección 'Ważne na jutro' renderizada en primer lugar */}
+      <article className="flex flex-col rounded-md border bg-card p-4 shadow-sm">
         <header className="mb-3 flex items-center justify-between gap-2">
-          <h2 className="text-xl font-semibold tracking-tight">​Lista Zadań</h2>
+          <h2 className="text-xl font-semibold tracking-tight">Ważne na jutro</h2>
+          <Pencil className="h-4 w-4 text-muted-foreground" />
+        </header>
+
+        <ul className="flex-1 space-y-2">
+          {isLoading && comments.length === 0 ? (
+            <li className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+            </li>
+          ) : null}
+          {!isLoading && comments.length === 0 ? (
+            <li className="rounded-md border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
+              Brak komentarzy. Owner może dodać poniżej.
+            </li>
+          ) : null}
+          {comments.map((item) => (
+            <li
+              key={item.row}
+              className="flex items-start gap-3 rounded-md border bg-background px-3 py-2"
+            >
+              <div className="flex-1 text-sm">
+                <p className="whitespace-pre-wrap font-medium">{item.text}</p>
+                {item.createdAt ? (
+                  <p className="mt-0.5 text-xs text-muted-foreground">{item.createdAt}</p>
+                ) : null}
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => deleteCommentMutation.mutate(item.row)}
+                disabled={!ownerPin || deleteCommentMutation.isPending}
+                title={ownerPin ? "Delete (owner)" : "Owner PIN required"}
+                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </li>
+          ))}
+        </ul>
+
+        <form onSubmit={handleAddComment} className="mt-4 grid gap-2 border-t pt-4">
+          <label className="text-sm font-medium" htmlFor="new-comment">
+            Dodaj komentarz (owner)
+          </label>
+          <div className="flex gap-2">
+            <Textarea
+              id="new-comment"
+              value={newComment}
+              onChange={(event) => setNewComment(event.target.value)}
+              placeholder="Informacja ważna na jutro…"
+              className="min-h-[80px] flex-1 resize-none"
+            />
+            <Button
+              type="submit"
+              disabled={!newComment.trim() || !ownerPin || addCommentMutation.isPending}
+              className="h-11 self-end"
+            >
+              {addCommentMutation.isPending ? <Loader2 className="animate-spin" /> : <Plus />}
+              Dodaj
+            </Button>
+          </div>
+          {!ownerPin ? (
+            <p className="text-xs text-muted-foreground">Wpisz PIN żeby dodać komentarz.</p>
+          ) : null}
+        </form>
+      </article>
+
+      {/* Sección 'Lista Zadań' renderizada en segundo lugar */}
+      <article className="flex flex-col rounded-md border bg-card p-4 shadow-sm">
+        <header className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="text-xl font-semibold tracking-tight">Lista Zadań</h2>
           <span className="text-xs text-muted-foreground">
             {tasks.filter((t) => t.done).length} / {tasks.length} done
           </span>
@@ -796,77 +864,7 @@ function ImportantPanel({
             </Button>
           </div>
           {!ownerPin ? (
-            <p className="text-xs text-muted-foreground">​Wpisz PIN żeby dodać zadanie.</p>
-          ) : null}
-        </form>
-      </article>
-
-      <article className="order-1 flex flex-col rounded-md border bg-card p-4 shadow-sm lg:order-none">
-        <header className="mb-3 flex items-center justify-between gap-2">
-          <h2 className="text-xl font-semibold tracking-tight">​Ważne na jutro</h2>
-          <Pencil className="h-4 w-4 text-muted-foreground" />
-        </header>
-
-        <ul className="flex-1 space-y-2">
-          {isLoading && comments.length === 0 ? (
-            <li className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading…
-            </li>
-          ) : null}
-          {!isLoading && comments.length === 0 ? (
-            <li className="rounded-md border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
-              Brak komentarzy. Owner może dodać poniżej.
-            </li>
-          ) : null}
-          {comments.map((item) => (
-            <li
-              key={item.row}
-              className="flex items-start gap-3 rounded-md border bg-background px-3 py-2"
-            >
-              <div className="flex-1 text-sm">
-                <p className="whitespace-pre-wrap font-medium">{item.text}</p>
-                {item.createdAt ? (
-                  <p className="mt-0.5 text-xs text-muted-foreground">{item.createdAt}</p>
-                ) : null}
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => deleteCommentMutation.mutate(item.row)}
-                disabled={!ownerPin || deleteCommentMutation.isPending}
-                title={ownerPin ? "Delete (owner)" : "Owner PIN required"}
-                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </li>
-          ))}
-        </ul>
-
-        <form onSubmit={handleAddComment} className="mt-4 grid gap-2 border-t pt-4">
-          <label className="text-sm font-medium" htmlFor="new-comment">
-            Dodaj komentarz (owner)
-          </label>
-          <div className="flex gap-2">
-            <Textarea
-              id="new-comment"
-              value={newComment}
-              onChange={(event) => setNewComment(event.target.value)}
-              placeholder="Informacja ważna na jutro…"
-              className="min-h-[80px] flex-1 resize-none"
-            />
-            <Button
-              type="submit"
-              disabled={!newComment.trim() || !ownerPin || addCommentMutation.isPending}
-              className="h-11 self-end"
-            >
-              {addCommentMutation.isPending ? <Loader2 className="animate-spin" /> : <Plus />}
-              Dodaj
-            </Button>
-          </div>
-          {!ownerPin ? (
-            <p className="text-xs text-muted-foreground">​Wpisz PIN żeby dodać komentarz.</p>
+            <p className="text-xs text-muted-foreground">Wpisz PIN żeby dodać zadanie.</p>
           ) : null}
         </form>
       </article>
