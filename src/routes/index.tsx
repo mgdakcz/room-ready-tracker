@@ -186,7 +186,8 @@ function Index() {
       let transitioned = false;
       current.forEach((status, key) => {
         const before = prev.get(key);
-        if (before && before !== "Gotowe" && status === "Gotowe") {
+        // Play chime if status changed from "Sprzątanie w toku" to "Gotowe"
+        if (before === "Sprzątanie w toku" && status === "Gotowe") {
           transitioned = true;
         }
       });
@@ -558,18 +559,18 @@ function RoomCard({
                       className={cn("h-2 w-2 rounded-full", {
                         "bg-red-600": s === "Priorytet | Do sprzątnięcia",
                         "bg-orange-500": s === "Wolne | Do sprzątnięcia",
-                        "bg-green-600": s === "Gotowe",
-                        "bg-black": s === "Zajęte",
                         "bg-primary": s === "Sprzątanie w toku",
+                        "bg-black": s === "Zajęte",
+                        "bg-green-600": s === "Gotowe",
                       })}
                     />
                     <span
                       className={cn({
                         "text-red-700": s === "Priorytet | Do sprzątnięcia",
                         "text-orange-700": s === "Wolne | Do sprzątnięcia",
-                        "text-green-700": s === "Gotowe",
-                        "text-black": s === "Zajęte",
                         "text-primary": s === "Sprzątanie w toku",
+                        "text-black": s === "Zajęte",
+                        "text-green-700": s === "Gotowe",
                       })}
                     >
                       {s}
@@ -677,10 +678,7 @@ function ImportantPanel({
   const deleteCommentMutation = useMutation({
     mutationFn: (row: number) => runDeleteComment({ data: { row, pin: ownerPin } }),
     onMutate: () => setError(""),
-    onSuccess: () => {
-      setNewComment("");
-      invalidate();
-    },
+    onSuccess: invalidate,
     onError,
   });
 
