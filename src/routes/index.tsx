@@ -256,7 +256,7 @@ function Index() {
                           <li>Додавайте <strong>Komentarze</strong> (Коментарі), якщо щось в апартаменті потребує уваги.</li>
                           <li>У вкладці <strong>Ważne</strong> (Важливе) знайдете важливу інформацію на наступний день та актуальний список завдань (додаткові ліжка, собаки тощо).</li>
                           <li>Якщо поле <strong>Ważne</strong> (Важливе) червоне, обов'язково перейдіть до вкладки <strong>Ważne</strong>.</li>
-                          <li>Відмічайте виконані пункти у списку завдань, щоб повідомити інших, що вже зролено.</li>
+                          <li>Відмічайте виконані пункти у списку завдань, щоб повідомити інших, що вже зроблено.</li>
                         </ol>
                       </section>
                     </div>
@@ -558,18 +558,18 @@ function RoomCard({
                       className={cn("h-2 w-2 rounded-full", {
                         "bg-red-600": s === "Priorytet | Do sprzątnięcia",
                         "bg-orange-500": s === "Wolne | Do sprzątnięcia",
-                        "bg-primary": s === "Sprzątanie w toku",
-                        "bg-black": s === "Zajęte",
                         "bg-green-600": s === "Gotowe",
+                        "bg-black": s === "Zajęte",
+                        "bg-primary": s === "Sprzątanie w toku",
                       })}
                     />
                     <span
                       className={cn({
                         "text-red-700": s === "Priorytet | Do sprzątnięcia",
                         "text-orange-700": s === "Wolne | Do sprzątnięcia",
-                        "text-primary": s === "Sprzątanie w toku",
-                        "text-black": s === "Zajęte",
                         "text-green-700": s === "Gotowe",
+                        "text-black": s === "Zajęte",
+                        "text-primary": s === "Sprzątanie w toku",
                       })}
                     >
                       {s}
