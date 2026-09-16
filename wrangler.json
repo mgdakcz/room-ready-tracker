@@ -1,9 +1,9 @@
 {
   "compatibility_date": "2026-06-01",
-  "main": "dist/server/index.mjs",
+  "main": ".output/server/index.mjs",
   "assets": {
     "binding": "ASSETS",
-    "directory": "dist/client"
+    "directory": ".output/public"
   },
   "name": "tanstack-start-ts",
   "compatibility_flags": ["nodejs_compat"],
