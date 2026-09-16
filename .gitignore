@@ -16,6 +16,11 @@ dist-ssr
 .nitro
 *.local
 
+# Environment variables
+.env
+.env.local
+.env.*.local
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars
@@ -27,6 +32,6 @@ dist-ssr
 .DS_Store
 *.suo
 *.ntvs*
-*.njsproj
-*.sln
-*.sw?
+
+# Package manager conflicts — standardize on bun
+package-lock.json
