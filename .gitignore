@@ -33,5 +33,4 @@ dist-ssr
 *.suo
 *.ntvs*
 
-# Package manager conflicts — standardize on bun
 package-lock.json
