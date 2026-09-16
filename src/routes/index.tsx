@@ -1,6 +1,8 @@
+import { ChatBox } from "@/components/ChatBox";
 import { useMutation, useQueryClient, useQuery, queryOptions } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   BedDouble,
   CheckCircle2,
@@ -10,6 +12,7 @@ import {
   HelpCircle,
   Loader2,
   LogOut,
+  MessageSquare,
   Pencil,
   Play,
   Plus,
@@ -25,13 +28,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -51,128 +58,14 @@ import {
   type Comment,
   type Room,
   type RoomStatus,
-} from "@/lib/sheets.functions";
+} from "@/lib/database.functions";
 import { cn } from "@/lib/utils";
-
-let sharedAudioCtx: AudioContext | null = null;
-let chimeUnlockInstalled = false;
-
-function getAudioCtx(): AudioContext | null {
-  if (typeof window === "undefined") return null;
-  const AudioCtx =
-    window.AudioContext ||
-    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!AudioCtx) return null;
-  if (!sharedAudioCtx) sharedAudioCtx = new AudioCtx();
-  return sharedAudioCtx;
-}
-
-function installChimeUnlock() {
-  if (chimeUnlockInstalled || typeof window === "undefined") return;
-  chimeUnlockInstalled = true;
-  const unlock = () => {
-    const ctx = getAudioCtx();
-    if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
-  };
-  ["pointerdown", "touchstart", "keydown", "click"].forEach((evt) =>
-    window.addEventListener(evt, unlock, { once: false, passive: true }),
-  );
-}
-
-type Tone = { freq: number; start: number; duration: number; type?: OscillatorType };
-
-// Low-level: plays a sequence of tones through the shared AudioContext.
-function playTones(tones: Tone[]) {
-  if (typeof window === "undefined") return;
-  try {
-    const ctx = getAudioCtx();
-    if (!ctx) return;
-    if (ctx.state === "suspended") {
-      ctx.resume().catch(() => {});
-    }
-    tones.forEach(({ freq, start, duration, type = "sine" }) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = type;
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0, ctx.currentTime + start);
-      gain.gain.linearRampToValueAtTime(0.25, ctx.currentTime + start + 0.02);
-      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + start + duration);
-      osc.connect(gain).connect(ctx.destination);
-      osc.start(ctx.currentTime + start);
-      osc.stop(ctx.currentTime + start + duration + 0.05);
-    });
-  } catch (e) {
-    console.warn("Ping sound failed:", e);
-  }
-}
-
-// Room became ready — pleasant ascending two-tone chime.
-function playChimeReady() {
-  playTones([
-    { freq: 880, start: 0, duration: 0.18 },
-    { freq: 1320, start: 0.18, duration: 0.22 },
-  ]);
-}
-
-// Room marked Priorytet — urgent, three sharp repeated beeps.
-function playChimePriority() {
-  playTones([
-    { freq: 1046, start: 0, duration: 0.12, type: "square" },
-    { freq: 1046, start: 0.18, duration: 0.12, type: "square" },
-    { freq: 1046, start: 0.36, duration: 0.16, type: "square" },
-  ]);
-}
-
-// Cleaning started (clock-in) — single soft short tone.
-function playChimeCleaningStarted() {
-  playTones([{ freq: 660, start: 0, duration: 0.15 }]);
-}
-
-// Room marked Zajęte (occupied) — lower descending tone.
-function playChimeOccupied() {
-  playTones([
-    { freq: 660, start: 0, duration: 0.16 },
-    { freq: 440, start: 0.16, duration: 0.2 },
-  ]);
-}
-
-// Room marked Wolne | Do sprzątnięcia (needs cleaning, non-priority) — neutral two-tone.
-function playChimeNeedsCleaning() {
-  playTones([
-    { freq: 550, start: 0, duration: 0.15 },
-    { freq: 660, start: 0.15, duration: 0.18 },
-  ]);
-}
-
-// Pick the right chime for a given new status.
-function playChimeForStatus(status: string) {
-  switch (status) {
-    case "Gotowe":
-      playChimeReady();
-      break;
-    case "Priorytet | Do sprzątnięcia":
-      playChimePriority();
-      break;
-    case "Sprzątanie w toku":
-      playChimeCleaningStarted();
-      break;
-    case "Zajęte":
-      playChimeOccupied();
-      break;
-    case "Wolne | Do sprzątnięcia":
-      playChimeNeedsCleaning();
-      break;
-    default:
-      playChimeReady();
-  }
-}
+import { installChimeUnlock, playChime } from "@/lib/chime";
 
 const roomsQueryOptions = queryOptions({
   queryKey: ["rooms"],
   queryFn: () => getRooms(),
   retry: false,
-  refetchInterval: 15000, // poll every 15s so the in-app chime fires even without window focus
 });
 
 const importantQueryOptions = queryOptions({
@@ -185,9 +78,15 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Room Cleaning Clock-In" },
-      { name: "description", content: "Secure room cleaning clock-in dashboard for Google Sheets tracking." },
+      {
+        name: "description",
+        content: "Secure room cleaning clock-in dashboard for Google  tracking.",
+      },
       { property: "og:title", content: "Room Cleaning Clock-In" },
-      { property: "og:description", content: "Secure room cleaning clock-in dashboard for Google Sheets tracking." },
+      {
+        property: "og:description",
+        content: "Secure room cleaning clock-in dashboard for Google  tracking.",
+      },
     ],
   }),
   loader: async ({ context }) => {
@@ -208,24 +107,17 @@ function Index() {
   const rooms: Room[] = (data?.rooms as Room[] | undefined) ?? [];
   const [cleanerName, setCleanerName] = useState("");
   const [ownerPin, setOwnerPin] = useState("");
-  const [selectedFloor, setSelectedFloor] = useState("All");
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
   const queryClient = useQueryClient();
 
-  const floors = useMemo(() => {
-    const values = Array.from(new Set(rooms.map((room) => room.floor).filter(Boolean)));
-    return ["All", ...values];
-  }, [rooms]);
-
   const visibleRooms = useMemo(() => {
     const q = search.trim().toLowerCase();
     return rooms.filter((room) => {
-      if (selectedFloor !== "All" && room.floor !== selectedFloor) return false;
       if (!q) return true;
       return (room.roomId ?? "").toLowerCase() === q;
     });
-  }, [rooms, selectedFloor, search]);
+  }, [rooms, search]);
 
   const stats = useMemo(
     () => ({
@@ -236,6 +128,11 @@ function Index() {
     [rooms],
   );
 
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   useEffect(() => {
     installChimeUnlock();
   }, []);
@@ -245,19 +142,17 @@ function Index() {
     const current = new Map<string, string>();
     rooms.forEach((r) => current.set(`${r.row}-${r.roomName}`, r.status));
     const prev = prevStatusesRef.current;
-  if (prev) {
-      // Play a distinct chime for every room whose status actually changed.
-      // Priority gets sounded last so it's the one staff hear if several change at once.
-      const changedStatuses: string[] = [];
+    if (prev) {
+      let transitioned = false;
       current.forEach((status, key) => {
         const before = prev.get(key);
-        if (before && before !== status) {
-          changedStatuses.push(status);
+        // Play chime whenever a room's status changes to "Gotowe", from any prior status
+        if (before !== undefined && before !== "Gotowe" && status === "Gotowe") {
+          transitioned = true;
         }
       });
-      if (changedStatuses.length > 0) {
-        const priority = changedStatuses.find((s) => s === "Priorytet | Do sprzątnięcia");
-        playChimeForStatus(priority ?? changedStatuses[0]);
+      if (transitioned) {
+        playChime();
       }
     }
     prevStatusesRef.current = current;
@@ -295,34 +190,87 @@ function Index() {
                     <DialogHeader>
                       <DialogTitle>Instrukcja obsługi / Інструкція користування</DialogTitle>
                       <DialogDescription>
-                        Jak korzystać z aplikacji do sprzątania apartamentów. / Як користуватися застосунком для прибирання апартаментів.
+                        Jak korzystać z aplikacji do sprzątania apartamentów. / Як користуватися
+                        застосунком для прибирання апартаментів.
                       </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-6 md:grid-cols-2">
                       <section className="space-y-3 text-sm text-slate-700">
                         <h3 className="text-base font-semibold text-baltic-800">🇵🇱 Polski</h3>
                         <ol className="list-decimal space-y-2 pl-5">
-                          <li>Wpisz imiona osób sprzątających apartament w polu <strong>Sprzątający</strong>.</li>
-                          <li>Użyj wyszukiwarki <strong>Szukaj apartamentu</strong> lub wybierz apartament z listy <strong>Wolne | do sprzątnięcia</strong> lub <strong>Priorytet | do sprzątnięcia</strong>.</li>
-                          <li>Naciśnij ikonę <strong>Rozpocznij sprzątanie</strong>, gdy zaczynasz pracę w apartamencie.</li>
-                          <li>Po zakończeniu kliknij ikonę <strong>Zakończ sprzątanie</strong>.</li>
-                          <li>Dodawaj <strong>Komentarze</strong> jeśli coś w apartamencie wymaga uwagi.</li>
-                          <li>W zakładce <strong>Ważne</strong> znajdziesz ważne informacje na kolejny dzień oraz aktualną listę zadań (dostawki, psy itd.).</li>
-                          <li>Jeśli pole <strong>Ważne</strong> jest czerwone, koniecznie przejdź do zakładki <strong>Ważne</strong>.</li>
-                          <li>Odznaczaj zadania na liście zadań, żeby dać znać innym co zostało zrobione.</li>
+                          <li>
+                            Wpisz imiona osób sprzątających apartament w polu{" "}
+                            <strong>Sprzątający</strong>.
+                          </li>
+                          <li>
+                            Użyj wyszukiwarki <strong>Szukaj apartamentu</strong> lub wybierz
+                            apartament z listy <strong>Wolne | do sprzątnięcia</strong> lub{" "}
+                            <strong>Priorytet | do sprzątnięcia</strong>.
+                          </li>
+                          <li>
+                            Naciśnij ikonę <strong>Rozpocznij sprzątanie</strong>, gdy zaczynasz
+                            pracę w apartamencie.
+                          </li>
+                          <li>
+                            Po zakończeniu kliknij ikonę <strong>Zakończ sprzątanie</strong>.
+                          </li>
+                          <li>
+                            Dodawaj <strong>Komentarze</strong> jeśli coś w apartamencie wymaga
+                            uwagi.
+                          </li>
+                          <li>
+                            W zakładce <strong>Ważne</strong> znajdziesz ważne informacje na kolejny
+                            dzień oraz aktualną listę zadań (dostawki, psy itd.).
+                          </li>
+                          <li>
+                            Jeśli pole <strong>Ważne</strong> jest czerwone, koniecznie przejdź do
+                            zakładki <strong>Ważne</strong>.
+                          </li>
+                          <li>
+                            Odznaczaj zadania na liście zadań, żeby dać znać innym co zostało
+                            zrobione.
+                          </li>
                         </ol>
                       </section>
                       <section className="space-y-3 text-sm text-slate-700">
                         <h3 className="text-base font-semibold text-baltic-800">🇺🇦 Українська</h3>
                         <ol className="list-decimal space-y-2 pl-5">
-                          <li>Введіть імена осіб, які прибирають апартамент, у полі <strong>Sprzątający</strong> (Прибиральники).</li>
-                          <li>Скористайтеся пошуком <strong>Szukaj apartamentu</strong> (Пошук апартаменту) або оберіть апартамент зі списку <strong>Wolne | do sprzątnięcia</strong> (Вільні | до прибирання) чи <strong>Priorytet | do sprzątnięcia</strong> (Пріоритет | до прибирання).</li>
-                          <li>Натисніть іконку <strong>Rozpocznij sprzątanie</strong> (Почати прибирання), коли починаєте роботу в апартаменті.</li>
-                          <li>Після завершення натисніть іконку <strong>Zakończ sprzątanie</strong> (Завершити прибирання).</li>
-                          <li>Додавайте <strong>Komentarze</strong> (Коментарі), якщо щось в апартаменті потребує уваги.</li>
-                          <li>У вкладці <strong>Ważne</strong> (Важливе) знайдете важливу інформацію на наступний день та актуальний список завдань (додаткові ліжка, собаки тощо).</li>
-                          <li>Якщо поле <strong>Ważne</strong> (Важливе) червоне, обов'язково перейдіть до вкладки <strong>Ważne</strong>.</li>
-                          <li>Відмічайте виконані пункти у списку завдань, щоб повідомити інших, що вже зроблено.</li>
+                          <li>
+                            Введіть імена осіб, які прибирають апартамент, у полі{" "}
+                            <strong>Sprzątający</strong> (Прибиральники).
+                          </li>
+                          <li>
+                            Скористайтеся пошуком <strong>Szukaj apartamentu</strong> (Пошук
+                            апартаменту) або оберіть апартамент зі списку{" "}
+                            <strong>Wolne | do sprzątnięcia</strong> (Вільні | до прибирання) чи{" "}
+                            <strong>Priorytet | do sprzątnięcia</strong> (Пріоритет | до
+                            прибирання).
+                          </li>
+                          <li>
+                            Натисніть іконку <strong>Rozpocznij sprzątanie</strong> (Почати
+                            прибирання), коли починаєте роботу в апартаменті.
+                          </li>
+                          <li>
+                            Після завершення натисніть іконку <strong>Zakończ sprzątanie</strong>{" "}
+                            (Завершити прибирання).
+                          </li>
+                          <li>
+                            Додавайте <strong>Komentarze</strong> (Коментарі), якщо щось в
+                            апартаменті потребує уваги.
+                          </li>
+                          <li>
+                            У вкладці <strong>Ważne</strong> (Важливе) знайдете важливу інформацію
+                            на наступний день та актуальний список завдань (додаткові ліжка, собаки
+                            тощо).
+                          </li>
+                          <li>
+                            Якщо поле <strong>Ważne</strong> (Важливе) червоне, обов'язково
+                            перейдіть до вкладки <strong>Ważne</strong>.
+                          </li>
+                          <li>
+                            Відмічайте виконані пункти у списку завдань, щоб повідомити інших, що
+                            вже зроблено.
+                          </li>
                         </ol>
                       </section>
                     </div>
@@ -330,7 +278,7 @@ function Index() {
                 </Dialog>
                 <button
                   type="button"
-                  onClick={() => playChimeReady()}
+                  onClick={() => playChime()}
                   aria-label="Test dźwięku"
                   title="Test dźwięku"
                   className="inline-flex items-center gap-2 rounded-md border border-baltic-200 bg-background px-3 py-1 text-sm text-muted-foreground transition-colors hover:bg-baltic-100 hover:text-baltic-800"
@@ -338,15 +286,32 @@ function Index() {
                   🔔
                 </button>
               </div>
-              <h1 className="text-3xl tracking-tight text-baltic-800 md:text-5xl font-bold text-slate-700">Apartamenty | Sprzątanie</h1>
+              <h1 className="text-3xl tracking-tight text-baltic-800 md:text-5xl font-bold text-slate-700">
+                Apartamenty | Sprzątanie
+              </h1>
               <p className="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
                 {"\u200b"}
               </p>
             </div>
             <div className="grid grid-cols-3 gap-2 md:min-w-80">
-              <Metric label="Priorytet | Do sprzątnięcia" value={stats.priorytet} icon={Clock3} onClick={() => focusStatus("Priorytet | Do sprzątnięcia")} />
-              <Metric label="Wolne | Do sprzątnięcia" value={stats.wolne} icon={CheckCircle2} onClick={() => focusStatus("Wolne | Do sprzątnięcia")} />
-              <Metric label="Sprzątanie w toku" value={stats.active} icon={DoorOpen} onClick={() => focusStatus("Sprzątanie w toku")} />
+              <Metric
+                label="Priorytet | Do sprzątnięcia"
+                value={stats.priorytet}
+                icon={Clock3}
+                onClick={() => focusStatus("Priorytet | Do sprzątnięcia")}
+              />
+              <Metric
+                label="Wolne | Do sprzątnięcia"
+                value={stats.wolne}
+                icon={CheckCircle2}
+                onClick={() => focusStatus("Wolne | Do sprzątnięcia")}
+              />
+              <Metric
+                label="Sprzątanie w toku"
+                value={stats.active}
+                icon={DoorOpen}
+                onClick={() => focusStatus("Sprzątanie w toku")}
+              />
             </div>
           </div>
 
@@ -378,7 +343,8 @@ function Index() {
 
           {loadError ? (
             <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-              Failed to load rooms: {loadError instanceof Error ? loadError.message : String(loadError)}
+              Failed to load rooms:{" "}
+              {loadError instanceof Error ? loadError.message : String(loadError)}
             </div>
           ) : null}
           {error ? (
@@ -405,40 +371,31 @@ function Index() {
             >
               Ważne
             </TabsTrigger>
+            <TabsTrigger value="chat" className="h-9 gap-2 px-4">
+              <MessageSquare className="h-4 w-4" />
+              Czat
+            </TabsTrigger>
           </TabsList>
-
           <TabsContent value="rooms">
-            <div className="mb-4 flex flex-wrap gap-2">
-              {floors.filter((floor) => floor !== "All").map((floor) => (
-                <Button
-                  key={floor}
-                  type="button"
-                  variant={selectedFloor === floor ? "default" : "outline"}
-                  onClick={() => setSelectedFloor(floor)}
-                  className="h-10"
-                >
-                  {floor}
-                </Button>
-              ))}
-            </div>
             <div className="flex flex-col gap-6">
-              {isLoading && rooms.length === 0 ? (
+              {isMounted && isLoading && rooms.length === 0 ? (
                 <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading rooms…
                 </div>
               ) : null}
-              {([
-                "Priorytet | Do sprzątnięcia",
-                "Wolne | Do sprzątnięcia",
-                "Sprzątanie w toku",
-                "Zajęte",
-                "Gotowe",
-              ] as RoomStatus[]).map((status) => {
+              {(
+                [
+                  "Priorytet | Do sprzątnięcia",
+                  "Wolne | Do sprzątnięcia",
+                  "Sprzątanie w toku",
+                  "Zajęte",
+                  "Gotowe",
+                ] as RoomStatus[]
+              ).map((status) => {
                 const group = visibleRooms.filter((r) => r.status === status);
                 if (group.length === 0) return null;
                 const defaultOpen =
-                  status === "Priorytet | Do sprzątnięcia" ||
-                  status === "Wolne | Do sprzątnięcia";
+                  status === "Priorytet | Do sprzątnięcia" || status === "Wolne | Do sprzątnięcia";
                 return (
                   <details
                     key={status}
@@ -470,7 +427,11 @@ function Index() {
                           cleanerName={cleanerName}
                           ownerPin={ownerPin}
                           setError={setError}
-                          onChanged={() => queryClient.invalidateQueries({ queryKey: ["rooms"] })}
+                          onChanged={() =>
+                            queryClient.invalidateQueries({
+                              queryKey: ["rooms"],
+                            })
+                          }
                         />
                       ))}
                     </div>
@@ -481,11 +442,11 @@ function Index() {
           </TabsContent>
 
           <TabsContent value="important">
-            <ImportantPanel
-              cleanerName={cleanerName}
-              ownerPin={ownerPin}
-              setError={setError}
-            />
+            <ImportantPanel cleanerName={cleanerName} ownerPin={ownerPin} setError={setError} />
+          </TabsContent>
+
+          <TabsContent value="chat">
+            <ChatBox currentUser={cleanerName.trim() || "Gość"} setError={setError} />
           </TabsContent>
         </Tabs>
       </section>
@@ -554,7 +515,8 @@ function RoomCard({
     ...mutationOptions,
   });
   const statusMutation = useMutation({
-    mutationFn: (status: RoomStatus) => runSetStatus({ data: { row: room.row, status, pin: ownerPin } }),
+    mutationFn: (status: RoomStatus) =>
+      runSetStatus({ data: { row: room.row, status, pin: ownerPin } }),
     ...mutationOptions,
   });
   const notesMutation = useMutation({
@@ -586,22 +548,50 @@ function RoomCard({
           <StatusBadge status={room.status} />
         </div>
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-          <span>Sprzątający: <span className="font-medium text-foreground">{room.cleanerName || "—"}</span></span>
-          <span>Aktualizacja: <span className="font-medium text-foreground">{room.timeStamp || "—"}</span></span>
-          <span>Start: <span className="font-medium text-foreground">{room.startTime || "—"}</span></span>
-          <span>Suma: <span className="font-medium text-foreground">{room.totalTime || "—"}</span></span>
+          <span>
+            Sprzątający:{" "}
+            <span className="font-medium text-foreground">{room.cleanerName || "—"}</span>
+          </span>
+          <span>
+            Aktualizacja:{" "}
+            <span className="font-medium text-foreground">{room.timeStamp || "—"}</span>
+          </span>
+          <span>
+            Start: <span className="font-medium text-foreground">{room.startTime || "—"}</span>
+          </span>
+          <span>
+            Suma: <span className="font-medium text-foreground">{room.totalTime || "—"}</span>
+          </span>
         </div>
       </div>
 
       <div className="flex flex-wrap gap-2 sm:w-auto sm:flex-nowrap">
         {isActive ? (
-          <Button type="button" onClick={() => clockOutMutation.mutate()} disabled={isBusy} className="h-10">
-            {clockOutMutation.isPending ? <Loader2 className="animate-spin" /> : <LogOut className="h-4 w-4" />}
+          <Button
+            type="button"
+            onClick={() => clockOutMutation.mutate()}
+            disabled={isBusy}
+            className="h-10"
+          >
+            {clockOutMutation.isPending ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              <LogOut className="h-4 w-4" />
+            )}
             <span className="hidden sm:inline">Finish</span>
           </Button>
         ) : (
-          <Button type="button" onClick={() => clockInMutation.mutate()} disabled={!canStart} className="h-10">
-            {clockInMutation.isPending ? <Loader2 className="animate-spin" /> : <Play className="h-4 w-4" />}
+          <Button
+            type="button"
+            onClick={() => clockInMutation.mutate()}
+            disabled={!canStart}
+            className="h-10"
+          >
+            {clockInMutation.isPending ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              <Play className="h-4 w-4" />
+            )}
             <span className="hidden sm:inline">Start</span>
           </Button>
         )}
@@ -666,8 +656,17 @@ function RoomCard({
             placeholder="Dodaj notatki do pokoju"
           />
           <div className="mt-2 flex justify-end">
-            <Button type="submit" variant="outline" disabled={isBusy || notes === room.notes} className="h-9">
-              {notesMutation.isPending ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />}
+            <Button
+              type="submit"
+              variant="outline"
+              disabled={isBusy || notes === room.notes}
+              className="h-9"
+            >
+              {notesMutation.isPending ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
               Zapisz notatki
             </Button>
           </div>
@@ -716,7 +715,11 @@ function ImportantPanel({
   const toggleMutation = useMutation({
     mutationFn: (vars: { row: number; done: boolean }) =>
       runToggle({
-        data: { row: vars.row, done: vars.done, cleanerName: cleanerName.trim() || undefined },
+        data: {
+          row: vars.row,
+          done: vars.done,
+          cleanerName: cleanerName.trim() || undefined,
+        },
       }),
     onMutate: () => setError(""),
     onSuccess: invalidate,
@@ -948,13 +951,16 @@ function StatusBadge({ status }: { status: string }) {
   return (
     <Badge
       variant="outline"
-      className={cn("max-w-36 justify-center whitespace-normal text-center leading-tight border-2 font-sans", {
-        "border-red-600 bg-red-50 text-red-700": status === "Priorytet | Do sprzątnięcia",
-        "border-orange-500 bg-orange-50 text-orange-700": status === "Wolne | Do sprzątnięcia",
-        "border-green-600 bg-green-50 text-green-700": status === "Gotowe",
-        "border-black bg-neutral-100 text-black": status === "Zajęte",
-        "border-primary/50 bg-primary/10 text-primary": status === "Sprzątanie w toku",
-      })}
+      className={cn(
+        "max-w-36 justify-center whitespace-normal text-center leading-tight border-2 font-sans",
+        {
+          "border-red-600 bg-red-50 text-red-700": status === "Priorytet | Do sprzątnięcia",
+          "border-orange-500 bg-orange-50 text-orange-700": status === "Wolne | Do sprzątnięcia",
+          "border-green-600 bg-green-50 text-green-700": status === "Gotowe",
+          "border-black bg-neutral-100 text-black": status === "Zajęte",
+          "border-primary/50 bg-primary/10 text-primary": status === "Sprzątanie w toku",
+        },
+      )}
     >
       {status || "No status"}
     </Badge>
