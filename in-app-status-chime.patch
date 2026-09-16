@@ -1,0 +1,145 @@
+diff --git a/src/routes/index.tsx b/src/routes/index.tsx
+index 0bffbb3..48c6f9b 100644
+--- a/src/routes/index.tsx
++++ b/src/routes/index.tsx
+@@ -79,7 +79,10 @@ function installChimeUnlock() {
+   );
+ }
+ 
+-function playChime() {
++type Tone = { freq: number; start: number; duration: number; type?: OscillatorType };
++
++// Low-level: plays a sequence of tones through the shared AudioContext.
++function playTones(tones: Tone[]) {
+   if (typeof window === "undefined") return;
+   try {
+     const ctx = getAudioCtx();
+@@ -87,10 +90,10 @@ function playChime() {
+     if (ctx.state === "suspended") {
+       ctx.resume().catch(() => {});
+     }
+-    const playTone = (freq: number, start: number, duration: number) => {
++    tones.forEach(({ freq, start, duration, type = "sine" }) => {
+       const osc = ctx.createOscillator();
+       const gain = ctx.createGain();
+-      osc.type = "sine";
++      osc.type = type;
+       osc.frequency.value = freq;
+       gain.gain.setValueAtTime(0, ctx.currentTime + start);
+       gain.gain.linearRampToValueAtTime(0.25, ctx.currentTime + start + 0.02);
+@@ -98,18 +101,78 @@ function playChime() {
+       osc.connect(gain).connect(ctx.destination);
+       osc.start(ctx.currentTime + start);
+       osc.stop(ctx.currentTime + start + duration + 0.05);
+-    };
+-    playTone(880, 0, 0.18);
+-    playTone(1320, 0.18, 0.22);
++    });
+   } catch (e) {
+     console.warn("Ping sound failed:", e);
+   }
+ }
+ 
++// Room became ready — pleasant ascending two-tone chime.
++function playChimeReady() {
++  playTones([
++    { freq: 880, start: 0, duration: 0.18 },
++    { freq: 1320, start: 0.18, duration: 0.22 },
++  ]);
++}
++
++// Room marked Priorytet — urgent, three sharp repeated beeps.
++function playChimePriority() {
++  playTones([
++    { freq: 1046, start: 0, duration: 0.12, type: "square" },
++    { freq: 1046, start: 0.18, duration: 0.12, type: "square" },
++    { freq: 1046, start: 0.36, duration: 0.16, type: "square" },
++  ]);
++}
++
++// Cleaning started (clock-in) — single soft short tone.
++function playChimeCleaningStarted() {
++  playTones([{ freq: 660, start: 0, duration: 0.15 }]);
++}
++
++// Room marked Zajęte (occupied) — lower descending tone.
++function playChimeOccupied() {
++  playTones([
++    { freq: 660, start: 0, duration: 0.16 },
++    { freq: 440, start: 0.16, duration: 0.2 },
++  ]);
++}
++
++// Room marked Wolne | Do sprzątnięcia (needs cleaning, non-priority) — neutral two-tone.
++function playChimeNeedsCleaning() {
++  playTones([
++    { freq: 550, start: 0, duration: 0.15 },
++    { freq: 660, start: 0.15, duration: 0.18 },
++  ]);
++}
++
++// Pick the right chime for a given new status.
++function playChimeForStatus(status: string) {
++  switch (status) {
++    case "Gotowe":
++      playChimeReady();
++      break;
++    case "Priorytet | Do sprzątnięcia":
++      playChimePriority();
++      break;
++    case "Sprzątanie w toku":
++      playChimeCleaningStarted();
++      break;
++    case "Zajęte":
++      playChimeOccupied();
++      break;
++    case "Wolne | Do sprzątnięcia":
++      playChimeNeedsCleaning();
++      break;
++    default:
++      playChimeReady();
++  }
++}
++
+ const roomsQueryOptions = queryOptions({
+   queryKey: ["rooms"],
+   queryFn: () => getRooms(),
+   retry: false,
++  refetchInterval: 15000, // poll every 15s so the in-app chime fires even without window focus
+ });
+ 
+ const importantQueryOptions = queryOptions({
+@@ -183,16 +246,18 @@ function Index() {
+     rooms.forEach((r) => current.set(`${r.row}-${r.roomName}`, r.status));
+     const prev = prevStatusesRef.current;
+     if (prev) {
+-      let transitioned = false;
++      // Play a distinct chime for every room whose status actually changed.
++      // Priority gets sounded last so it's the one staff hear if several change at once.
++      const changedStatuses: string[] = [];
+       current.forEach((status, key) => {
+         const before = prev.get(key);
+-        // Play chime if status changed from "Sprzątanie w toku" to "Gotowe"
+-        if (before === "Sprzątanie w toku" && status === "Gotowe") {
+-          transitioned = true;
++        if (before && before !== status) {
++          changedStatuses.push(status);
+         }
+       });
+-      if (transitioned) {
+-        playChime();
++      if (changedStatuses.length > 0) {
++        const priority = changedStatuses.find((s) => s === "Priorytet | Do sprzątnięcia");
++        playChimeForStatus(priority ?? changedStatuses[0]);
+       }
+     }
+     prevStatusesRef.current = current;
+@@ -265,7 +330,7 @@ function Index() {
+                 </Dialog>
+                 <button
+                   type="button"
+-                  onClick={() => playChime()}
++                  onClick={() => playChimeReady()}
+                   aria-label="Test dźwięku"
+                   title="Test dźwięku"
+                   className="inline-flex items-center gap-2 rounded-md border border-baltic-200 bg-background px-3 py-1 text-sm text-muted-foreground transition-colors hover:bg-baltic-100 hover:text-baltic-800"
