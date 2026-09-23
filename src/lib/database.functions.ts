@@ -112,6 +112,46 @@ function formatMinutes(totalMinutes: number | null | undefined): string {
   return `${h}:${String(m).padStart(2, "0")}`;
 }
 
+// ---------- Error helpers ----------
+// Every action reports clearly WHY it failed, so a wrong PIN is never confused
+// with a database / permission problem.
+
+function requireOwnerPin(pin: string) {
+  const expected = process.env.OWNER_PIN;
+  if (!expected) {
+    throw new Error(
+      "Server setup error: OWNER_PIN is not configured on the server. Your PIN was not checked.",
+    );
+  }
+  if (pin !== expected) {
+    throw new Error("Incorrect PIN. Please check the owner PIN and try again.");
+  }
+}
+
+type DbResult = { data: unknown; error: { message: string } | null };
+
+// Use for update/delete/insert calls chained with .select(): fails if Supabase
+// returned an error OR silently changed zero rows (typical when Row Level
+// Security blocks the write).
+function ensureSaved(what: string, result: DbResult) {
+  if (result.error) {
+    throw new Error(`Could not save ${what}: database error - ${result.error.message}`);
+  }
+  const rows = Array.isArray(result.data) ? result.data : result.data ? [result.data] : [];
+  if (rows.length === 0) {
+    throw new Error(
+      `Could not save ${what}: the database did not change anything. ` +
+        "The item may no longer exist, or Supabase Row Level Security is blocking this change.",
+    );
+  }
+}
+
+// Activity log writes should never make the main action fail.
+async function logAction(entry: Record<string, unknown>) {
+  const { error } = await supabase.from("logs").insert(entry);
+  if (error) console.warn("[logs] could not write log entry:", error.message);
+}
+
 // ---------- Room Server functions ----------
 
 export const getRooms = createServerFn({ method: "GET" }).handler(async () => {
@@ -129,7 +169,7 @@ export const getRooms = createServerFn({ method: "GET" }).handler(async () => {
     error,
   );
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(`Could not load rooms: database error - ${error.message}`);
   const rooms: Room[] = (rows ?? []).map(mapRoomRow);
   return { rooms };
 });
@@ -146,17 +186,21 @@ export const clockIn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { stamp } = nowWarsaw();
 
-    await supabase
-      .from("rooms")
-      .update({
-        Status: "Sprzątanie w toku",
-        "Time Stamp": stamp,
-        "Cleaner Name": data.cleanerName,
-        "Start Time": stamp,
-      })
-      .eq("Room ID", data.row);
+    ensureSaved(
+      "clock-in",
+      await supabase
+        .from("rooms")
+        .update({
+          Status: "Sprzątanie w toku",
+          "Time Stamp": stamp,
+          "Cleaner Name": data.cleanerName,
+          "Start Time": stamp,
+        })
+        .eq("Room ID", data.row)
+        .select(),
+    );
 
-    await supabase.from("logs").insert({
+    await logAction({
       action: "Clock in",
       cleaner_name: data.cleanerName,
       details: `Started at ${stamp}`,
@@ -175,22 +219,27 @@ export const clockOut = createServerFn({ method: "POST" })
       .eq("Room ID", data.row)
       .single();
 
-    if (roomError || !room) throw new Error("Room not found");
+    if (roomError) throw new Error(`Could not load room: database error - ${roomError.message}`);
+    if (!room) throw new Error("Could not clock out: room not found.");
 
     const { stamp } = nowWarsaw();
     const totalMinutes = diffMinutes(room["Start Time"], stamp);
 
-    await supabase
-      .from("rooms")
-      .update({
-        Status: "Gotowe",
-        "Time Stamp": stamp,
-        "End Time": stamp,
-        "Total Time": totalMinutes,
-      })
-      .eq("Room ID", data.row);
+    ensureSaved(
+      "clock-out",
+      await supabase
+        .from("rooms")
+        .update({
+          Status: "Gotowe",
+          "Time Stamp": stamp,
+          "End Time": stamp,
+          "Total Time": totalMinutes,
+        })
+        .eq("Room ID", data.row)
+        .select(),
+    );
 
-    await supabase.from("logs").insert({
+    await logAction({
       action: "Clock out",
       cleaner_name: room["Cleaner Name"],
       details: `Finished at ${stamp} (total ${formatMinutes(totalMinutes)})`,
@@ -211,17 +260,20 @@ export const setRoomStatus = createServerFn({ method: "POST" })
       .parse(data),
   )
   .handler(async ({ data }) => {
-    const expected = process.env.OWNER_PIN;
-    if (data.pin !== expected) throw new Error("Invalid PIN");
+    requireOwnerPin(data.pin);
 
     const { stamp } = nowWarsaw();
 
-    await supabase
-      .from("rooms")
-      .update({ Status: data.status, "Time Stamp": stamp })
-      .eq("Room ID", data.row);
+    ensureSaved(
+      "the room status",
+      await supabase
+        .from("rooms")
+        .update({ Status: data.status, "Time Stamp": stamp })
+        .eq("Room ID", data.row)
+        .select(),
+    );
 
-    await supabase.from("logs").insert({
+    await logAction({
       action: "Status change",
       details: `Set to "${data.status}" by owner`,
       created_at: stamp,
@@ -233,9 +285,8 @@ export const setRoomStatus = createServerFn({ method: "POST" })
 export const verifyOwnerPin = createServerFn({ method: "POST" })
   .inputValidator((data) => z.object({ pin: z.string().min(1).max(32) }).parse(data))
   .handler(async ({ data }) => {
-    const expected = process.env.OWNER_PIN;
-    if (!expected) throw new Error("OWNER_PIN not configured");
-    return { ok: data.pin === expected };
+    requireOwnerPin(data.pin);
+    return { ok: true };
   });
 
 export const setRoomNotes = createServerFn({ method: "POST" })
@@ -248,9 +299,12 @@ export const setRoomNotes = createServerFn({ method: "POST" })
       .parse(data),
   )
   .handler(async ({ data }) => {
-    await supabase.from("rooms").update({ Notes: data.notes }).eq("Room ID", data.row);
+    ensureSaved(
+      "the room notes",
+      await supabase.from("rooms").update({ Notes: data.notes }).eq("Room ID", data.row).select(),
+    );
 
-    await supabase.from("logs").insert({
+    await logAction({
       action: "Notes updated",
       details: data.notes ? data.notes.slice(0, 500) : "(cleared)",
     });
@@ -285,14 +339,16 @@ export const addChecklistItem = createServerFn({ method: "POST" })
       .parse(data),
   )
   .handler(async ({ data }) => {
-    const expected = process.env.OWNER_PIN;
-    if (data.pin !== expected) throw new Error("Invalid PIN");
+    requireOwnerPin(data.pin);
 
     const { stamp } = nowWarsaw();
 
-    await supabase.from("important_tasks").insert({ task: data.task, done: false });
+    ensureSaved(
+      "the checklist item",
+      await supabase.from("important_tasks").insert({ task: data.task, done: false }).select(),
+    );
 
-    await supabase.from("logs").insert({
+    await logAction({
       action: "Checklist add",
       details: data.task.slice(0, 500),
       created_at: stamp,
@@ -318,16 +374,20 @@ export const toggleChecklistItem = createServerFn({ method: "POST" })
 
     const { stamp } = nowWarsaw();
 
-    await supabase
-      .from("important_tasks")
-      .update({
-        done: data.done,
-        done_by: data.done ? data.cleanerName : null,
-        done_at: data.done ? stamp : null,
-      })
-      .eq("id", data.row);
+    ensureSaved(
+      "the checklist item",
+      await supabase
+        .from("important_tasks")
+        .update({
+          done: data.done,
+          done_by: data.done ? data.cleanerName : null,
+          done_at: data.done ? stamp : null,
+        })
+        .eq("id", data.row)
+        .select(),
+    );
 
-    await supabase.from("logs").insert({
+    await logAction({
       action: data.done ? "Checklist done" : "Checklist undone",
       cleaner_name: data.cleanerName,
       created_at: stamp,
@@ -346,14 +406,16 @@ export const deleteChecklistItem = createServerFn({ method: "POST" })
       .parse(data),
   )
   .handler(async ({ data }) => {
-    const expected = process.env.OWNER_PIN;
-    if (data.pin !== expected) throw new Error("Invalid PIN");
+    requireOwnerPin(data.pin);
 
     const { stamp } = nowWarsaw();
 
-    await supabase.from("important_tasks").delete().eq("id", data.row);
+    ensureSaved(
+      "the checklist deletion",
+      await supabase.from("important_tasks").delete().eq("id", data.row).select(),
+    );
 
-    await supabase.from("logs").insert({
+    await logAction({
       action: "Checklist delete",
       created_at: stamp,
     });
@@ -371,13 +433,15 @@ export const setImportantNotes = createServerFn({ method: "POST" })
       .parse(data),
   )
   .handler(async ({ data }) => {
-    const expected = process.env.OWNER_PIN;
-    if (data.pin !== expected) throw new Error("Invalid PIN");
+    requireOwnerPin(data.pin);
 
     // Assuming a single row in important_notes table with id = 1
-    await supabase.from("important_notes").update({ notes: data.notes }).eq("id", 1);
+    ensureSaved(
+      "the important notes",
+      await supabase.from("important_notes").update({ notes: data.notes }).eq("id", 1).select(),
+    );
 
-    await supabase.from("logs").insert({
+    await logAction({
       action: "Ważne notes updated",
       details: data.notes ? data.notes.slice(0, 500) : "(cleared)",
     });
@@ -395,17 +459,22 @@ export const addComment = createServerFn({ method: "POST" })
       .parse(data),
   )
   .handler(async ({ data }) => {
-    const expected = process.env.OWNER_PIN;
-    if (data.pin !== expected) throw new Error("Invalid PIN");
+    requireOwnerPin(data.pin);
 
     const { stamp } = nowWarsaw();
 
-    await supabase.from("important_comments").insert({
-      text: data.text,
-      created_at: stamp,
-    });
+    ensureSaved(
+      "the comment",
+      await supabase
+        .from("important_comments")
+        .insert({
+          text: data.text,
+          created_at: stamp,
+        })
+        .select(),
+    );
 
-    await supabase.from("logs").insert({
+    await logAction({
       action: "Comment add",
       details: data.text.slice(0, 500),
       created_at: stamp,
@@ -424,14 +493,16 @@ export const deleteComment = createServerFn({ method: "POST" })
       .parse(data),
   )
   .handler(async ({ data }) => {
-    const expected = process.env.OWNER_PIN;
-    if (data.pin !== expected) throw new Error("Invalid PIN");
+    requireOwnerPin(data.pin);
 
     const { stamp } = nowWarsaw();
 
-    await supabase.from("important_comments").delete().eq("id", data.row);
+    ensureSaved(
+      "the comment deletion",
+      await supabase.from("important_comments").delete().eq("id", data.row).select(),
+    );
 
-    await supabase.from("logs").insert({
+    await logAction({
       action: "Comment delete",
       created_at: stamp,
     });
