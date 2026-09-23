@@ -64,6 +64,7 @@ import {
   type Room,
   type RoomStatus,
 } from "@/lib/database.functions.ts";
+import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { installChimeUnlock, playChime } from "@/lib/chime";
 
@@ -71,7 +72,38 @@ const roomsQueryOptions = queryOptions({
   queryKey: ["rooms"],
   queryFn: () => getRooms(),
   retry: false,
+  // Safety net: live updates (see useLiveRoomUpdates) normally refresh the list
+  // instantly; this catches anything missed while a phone slept or lost signal.
+  refetchInterval: 30_000,
+  // Refresh as soon as the app comes back on screen or the connection returns.
+  refetchOnWindowFocus: true,
+  refetchOnReconnect: true,
 });
+
+// Listens for any change to the rooms table in Supabase and reloads the room
+// list, so every open device sees status changes (and hears the chime) within
+// a second or two. Requires Realtime to be enabled for the "rooms" table.
+function useLiveRoomUpdates() {
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    const refresh = () =>
+      queryClient.invalidateQueries({ queryKey: ["rooms"] });
+    const channel = supabase
+      .channel("rooms-live")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "rooms" },
+        refresh,
+      )
+      .subscribe((status) => {
+        // After (re)connecting, catch up on anything that changed meanwhile.
+        if (status === "SUBSCRIBED") refresh();
+      });
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+}
 
 const importantQueryOptions = queryOptions({
   queryKey: ["important"],
@@ -115,6 +147,8 @@ function Index() {
   useEffect(() => {
     installChimeUnlock();
   }, []);
+
+  useLiveRoomUpdates();
 
   const { data, error: loadError, isLoading } = useQuery(roomsQueryOptions);
   const { data: importantData } = useQuery(importantQueryOptions);
